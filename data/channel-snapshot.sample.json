@@ -1,0 +1,73 @@
+{
+  "meta": {
+    "generated_at": "2026-10-10 21:48",
+    "address": "（已脱敏）中国大陆某住宅地址",
+    "addressId": "（已脱敏，真实值请通过 delivery-query-addresses 获取）",
+    "note": "数据由麦当劳 MCP 真实接口抓取：query-nearby-stores / delivery-query-stores / query-meals / calculate-price。为保护隐私，地址与地址 ID 已脱敏，其余价格与编码为真实值。"
+  },
+  "basket": [
+    { "name": "双层吉士汉堡", "quantity": 1 },
+    { "name": "中薯条", "quantity": 1 },
+    { "name": "麦咖啡™冰美式中杯", "quantity": 1 }
+  ],
+  "coupons": [
+    {
+      "title": "9.9元中杯冰美式",
+      "couponId": "264B97DBE02BE6CF996AA6914151C4A9",
+      "couponCode": "MCD609C90Z0100T690610",
+      "productCode": "507411",
+      "couponPrice": 9.9,
+      "validity": "2026-10-10 00:00-2026-10-16 23:59",
+      "tags": ["到店专用", "外送专用"],
+      "note": "实测：券绑定自提编码 507411。外送编码 507368 计价报 600012 促销规则不支持该商品"
+    }
+  ],
+  "channels": {
+    "pickup": {
+      "label": "到店自提",
+      "storeCode": "1410509",
+      "storeName": "麦当劳福州古田路(省投运营中心)餐厅",
+      "distanceMeters": 508,
+      "beType": 1,
+      "orderType": 1,
+      "deliveryFee": 0,
+      "packingFee": 0,
+      "takeWayOptions": [
+        { "code": "eat-in", "title": "堂食" },
+        { "code": "take-in-store", "title": "外带" }
+      ],
+      "menu": {
+        "1120": { "name": "双层吉士汉堡", "price": 23.0 },
+        "1100": { "name": "巨无霸", "price": 26.5 },
+        "1406": { "name": "板烧鸡腿堡", "price": 24.0 },
+        "4810": { "name": "中薯条", "price": 14.0 },
+        "521741": { "name": "脆薯饼", "price": 8.5 },
+        "4437": { "name": "玉米杯", "price": 13.5 },
+        "507411": { "name": "麦咖啡™冰美式中杯", "price": 11.9 },
+        "6102": { "name": "苹果片", "price": 7.0 },
+        "3755": { "name": "纯牛奶(盒装)", "price": 10.5 }
+      }
+    },
+    "delivery": {
+      "label": "麦乐送",
+      "storeCode": "1410509",
+      "beCode": "141050902",
+      "storeName": "麦当劳福州古田路(省投运营中心)餐厅",
+      "beType": 2,
+      "orderType": 2,
+      "deliveryFee": 6.0,
+      "packingFee": 1.9,
+      "menu": {
+        "901120": { "name": "双层吉士汉堡", "price": 25.0 },
+        "901100": { "name": "巨无霸", "price": 28.5 },
+        "901406": { "name": "板烧鸡腿堡", "price": 26.0 },
+        "501205": { "name": "中薯条", "price": 15.5 },
+        "521741": { "name": "脆薯饼", "price": 9.5 },
+        "904437": { "name": "甜香玉米杯", "price": 14.5 },
+        "507368": { "name": "麦咖啡™热美式中杯", "price": 11.9 },
+        "906102": { "name": "苹果片", "price": 7.5 },
+        "903755": { "name": "纯牛奶(盒装)", "price": 11.5 }
+      }
+    }
+  }
+}

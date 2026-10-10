@@ -1,0 +1,20 @@
+# 凭据与本地配置
+.env
+.env.local
+*.token
+mcp-config.json
+
+# WorkBuddy 本地数据
+.workbuddy/
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# 依赖与缓存
+node_modules/
+__pycache__/
+*.pyc
+.cache/
