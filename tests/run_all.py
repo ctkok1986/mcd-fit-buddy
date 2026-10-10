@@ -3,6 +3,7 @@
 """一键运行全部回归测试。任意一项失败即返回非零退出码。"""
 
 import os
+import re
 import subprocess
 import sys
 
@@ -10,7 +11,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SUITES = [
     ("配餐求解引擎", "test_planner.py"),
     ("下单比价引擎", "test_order_optimizer.py"),
+    ("剩余额度追踪", "test_budget_tracker.py"),
+    ("券上下文", "test_coupon_context.py"),
+    ("体成分与腹肌引擎", "test_abs_engine.py"),
+    ("目标模式与券优先级", "test_goals.py"),
 ]
+
+# 各套件汇总行写法不一（"结果：" / "测试结果："），统一用正则抓计数，
+# 避免因前缀差异导致漏统计。
+SUMMARY = re.compile(r"(\d+)\s+passed,\s*(\d+)\s+failed")
 
 
 def main():
@@ -27,15 +36,13 @@ def main():
         print(proc.stdout)
         if proc.stderr:
             print(proc.stderr)
-        for line in proc.stdout.splitlines():
-            if line.startswith("测试结果："):
-                try:
-                    nums = line.replace("测试结果：", "").replace(" passed,", "").replace(" failed", "")
-                    p, f = nums.split()
-                    total_pass += int(p)
-                    total_fail += int(f)
-                except ValueError:
-                    pass
+        found = SUMMARY.findall(proc.stdout)
+        if found:
+            p, f = found[-1]        # 取最后一行汇总
+            total_pass += int(p)
+            total_fail += int(f)
+        else:
+            print(f"  ⚠️  {script} 未输出可识别的汇总行，计数可能不准")
         if proc.returncode != 0:
             failed_suites.append(label)
 

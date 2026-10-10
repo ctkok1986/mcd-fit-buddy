@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "generated_at": "2026-10-11 00:16",
+    "storeCode": "1410509",
+    "storeName": "麦当劳福州古田路(省投运营中心)餐厅",
+    "channel": "pickup",
+    "note": "数据来自麦当劳 MCP 真实抓取（query-my-coupons / query-store-coupons / calculate-price）。价格与有效期均为真实值；地址等个人信息已脱敏。"
+  },
+  "coupons": [
+    {
+      "title": "9.9元中杯冰美式",
+      "couponId": "264B97DBE02BE6CF996AA6914151C4A9",
+      "couponCode": "MCD609C90Z0100T690610",
+      "productCode": "507411",
+      "menuName": "冰美式中杯",
+      "listPrice": 11.9,
+      "couponPrice": 9.9,
+      "validFrom": "2026-10-10 00:00",
+      "validUntil": "2026-10-16 23:59",
+      "channelTags": ["到店专用", "外送专用"],
+      "unavailable": false,
+      "verified": "已用 calculate-price 实测：原价 19.00 → 券后 9.90（基于划线价）"
+    },
+    {
+      "title": "人气麦旋风买一送一",
+      "couponId": "demo-mcflurry-bogo",
+      "couponCode": "DEMO",
+      "productCode": null,
+      "menuName": "奥利奥麦旋风",
+      "listPrice": 15.0,
+      "couponPrice": 15.0,
+      "validFrom": "2026-10-05 00:00",
+      "validUntil": "2026-10-11 23:59",
+      "channelTags": ["到店专用"],
+      "dailyWindow": "10:00-22:00",
+      "unavailable": false,
+      "mappingNote": "券面为『买一送一』，实际到手两份；此处按单份标价计入，商品映射为推测，以门店菜单为准"
+    },
+    {
+      "title": "免费脆薯饼",
+      "couponId": "0D94B7923332F58026539DB8CCA81275",
+      "couponCode": "MCD60CW93080019600T01",
+      "productCode": "521741",
+      "menuName": "脆薯饼",
+      "listPrice": 8.5,
+      "couponPrice": 0,
+      "validFrom": "2026-10-10 00:00",
+      "validUntil": "2026-10-20 23:59",
+      "channelTags": ["到店专用"],
+      "unavailable": true,
+      "verified": "已用 calculate-price 实测：返回 600012「当前优惠券不可用」。"
+    },
+    {
+      "title": "火腿扒堡早餐两件套",
+      "couponId": "demo-breakfast-mon",
+      "couponCode": "DEMO",
+      "productCode": null,
+      "menuName": "火腿扒堡早餐两件套",
+      "listPrice": null,
+      "couponPrice": 9.9,
+      "validFrom": "2026-10-12 05:00",
+      "validUntil": "2026-10-12 10:29",
+      "channelTags": ["到店专用"],
+      "unavailable": false,
+      "mappingNote": "单日窄窗券（仅 10-12 05:00-10:29 可用）；未取到对应 productCode，本工具不会臆测映射"
+    },
+    {
+      "title": "芝香脆鸡扒堡早餐两件套",
+      "couponId": "demo-breakfast-tue",
+      "couponCode": "DEMO",
+      "productCode": null,
+      "menuName": "芝香脆鸡扒堡早餐两件套",
+      "listPrice": null,
+      "couponPrice": 9.9,
+      "validFrom": "2026-10-13 05:00",
+      "validUntil": "2026-10-13 10:29",
+      "channelTags": ["到店专用"],
+      "unavailable": false,
+      "mappingNote": "单日窄窗券（仅 10-13 05:00-10:29 可用）；未取到对应 productCode"
+    }
+  ]
+}

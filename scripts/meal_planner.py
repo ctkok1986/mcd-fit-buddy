@@ -15,7 +15,9 @@
 
 import argparse
 import csv
+import json
 import os
+import sys
 from itertools import combinations
 
 DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -33,6 +35,24 @@ ACTIVITY = {
     "active": (1.725, "高度活动（每周 6-7 次运动）"),
     "athlete": (1.9, "极高强度（体力劳动/运动员）"),
 }
+
+# 目标模式。锚点是 TDEE，deficit_pct 为正表示缺口、为负表示盈余。
+# 比例来源：
+#   减脂：文献共识缺口 15-20%，超过 25% 显著增加肌肉流失
+#   增肌减脂(recomp)：5-10% 小缺口，同时进行增肌与减脂
+#   增肌：lean bulk 5-15% 小盈余，取 8%
+# 蛋白系数（g/kg）来源：JISSN 对热量缺口下偏瘦训练者建议 2.3-3.1 g/kg 瘦体重。
+#   recomp 取 2.4（区间内）、cut 取 2.2（保守下沿）、gain 取 2.0（热量充足时无需更高）
+GOALS = {
+    "cut": {"deficit_pct": 0.18, "protein_lbm": 2.2, "protein_bw": 1.8,
+            "horizon_days": 90, "desc": "减脂（保肌优先）"},
+    "recomp": {"deficit_pct": 0.08, "protein_lbm": 2.4, "protein_bw": 2.0,
+               "horizon_days": 120, "desc": "增肌减脂（体成分重组）"},
+    "gain": {"deficit_pct": -0.08, "protein_lbm": 2.0, "protein_bw": 1.8,
+             "horizon_days": 150, "desc": "增肌（小盈余）"},
+}
+
+PROTEIN_PER_KG_LBM = 2.2   # 无 --goal 时按瘦体重算的默认系数
 
 # ── 显式分类白名单 ──────────────────────────────────────────────
 # 不用子串猜测：曾出现「柠萌风味薄皮焦香V翅」因含「柠」被误判为饮品、
@@ -110,23 +130,49 @@ def calc_bmr(weight, height, age, sex):
 
 
 def build_target(args):
-    """计算每日热量与宏量目标，并施加安全护栏。"""
-    bmr = calc_bmr(args.weight, args.height, args.age, args.sex)
+    """计算每日热量与宏量目标，并施加安全护栏。
+
+    两条路径：
+    - 指定 --goal（cut / recomp / gain）：**锚定 TDEE**，按模式设缺口或盈余
+    - 未指定 --goal：沿用旧路径，由 --target-weight + --weeks 反推缺口
+
+    为什么锚点是 TDEE 而不是 BMR：
+      摄入低于 BMR 并不等于减脂更快。实测（BMR=1600）：
+        轻度活动 TDEE 2200 → 吃 1600 意味着缺口 27%，已超 25% 安全上限
+        中度活动 TDEE 2480 → 缺口 35%，显著增加肌肉流失
+      而增肌需要吃到 BMR 的 1.3~1.7 倍，「不超过 BMR」数学上到不了。
+      故 BMR 仅作**下限护栏**（不低于 BMR×1.1），不作目标锚点。
+    """
+    measured_bmr = getattr(args, "bmr", None)
+    if measured_bmr:
+        bmr = float(measured_bmr)
+        bmr_source = "用户实测"
+    else:
+        bmr = calc_bmr(args.weight, args.height, args.age, args.sex)
+        bmr_source = "Mifflin-St Jeor 公式估算"
+
     factor, factor_desc = ACTIVITY[args.activity]
     tdee = bmr * factor
 
-    delta_kg = args.weight - args.target_weight
-    total_deficit = delta_kg * KCAL_PER_KG_FAT
-    daily_deficit = total_deficit / (args.weeks * 7)
-
     warnings = []
-    # 护栏 1：缺口不超过 TDEE 的 25%
+    goal = getattr(args, "goal", None)
+    g = GOALS.get(goal) if goal else None
+
+    if g:
+        target_kcal = tdee * (1 - g["deficit_pct"])
+        daily_deficit = tdee - target_kcal
+        total_deficit = daily_deficit * g["horizon_days"]
+    else:
+        delta_kg = args.weight - args.target_weight
+        total_deficit = delta_kg * KCAL_PER_KG_FAT
+        daily_deficit = total_deficit / (args.weeks * 7)
+
+    # 护栏 1：缺口不超过 TDEE 的 25%（超过即显著增加肌肉流失）
     max_deficit = tdee * 0.25
     if daily_deficit > max_deficit:
         warnings.append(
             f"目标缺口 {daily_deficit:.0f} kcal/天 超过安全上限 "
             f"{max_deficit:.0f} kcal/天（TDEE 的 25%），已收窄至上限。"
-            f"按此速度需约 {total_deficit / max_deficit / 7:.1f} 周。"
         )
         daily_deficit = max_deficit
 
@@ -143,15 +189,29 @@ def build_target(args):
     # 护栏生效后重算实际缺口，避免"缺口"与"摄入"两个数字自相矛盾
     daily_deficit = tdee - daily_kcal
 
-    protein_target = args.weight * 1.8          # 减脂期保肌
+    # 蛋白：优先按瘦体重算（脂肪组织不需要蛋白）
+    bf = getattr(args, "bodyfat", None)
+    coef_lbm = g["protein_lbm"] if g else PROTEIN_PER_KG_LBM
+    coef_bw = g["protein_bw"] if g else 1.8
+    if bf:
+        lbm = args.weight * (1 - bf / 100.0)
+        protein_target = lbm * coef_lbm
+        protein_source = f"瘦体重 {lbm:.1f} kg × {coef_lbm} g/kg LBM"
+    else:
+        protein_target = args.weight * coef_bw
+        protein_source = f"体重 {args.weight:.1f} kg × {coef_bw}（未提供体脂率）"
+
     fat_min = args.weight * 0.6                 # 激素与脂溶性维生素
     carb_target = max(0, (daily_kcal - protein_target * 4 - fat_min * 9) / 4)
 
     return {
-        "bmr": bmr, "tdee": tdee, "factor": factor, "factor_desc": factor_desc,
+        "bmr": bmr, "bmr_source": bmr_source,
+        "tdee": tdee, "factor": factor, "factor_desc": factor_desc,
         "daily_deficit": daily_deficit, "daily_kcal": daily_kcal,
-        "protein_target": protein_target, "fat_min": fat_min,
+        "protein_target": protein_target, "protein_source": protein_source,
+        "fat_min": fat_min,
         "carb_target": carb_target,
+        "goal": goal, "goal_desc": g["desc"] if g else "旧路径（按减重目标反推）",
         "weekly_loss": daily_deficit * 7 / KCAL_PER_KG_FAT,
         "warnings": warnings,
     }
@@ -167,12 +227,18 @@ def totals(combo):
     }
 
 
-def make_score(sodium_weight):
+def make_score(sodium_weight, coupon_ctx=None):
     """构造打分函数（越小越优）。
 
     词典序：热量偏离 >> 蛋白缺口 > 钠超标 > 蛋白密度。
     sodium_weight 越大，越倾向控钠（蛋白会让步）。
+
+    coupon_ctx 非空时，叠加【券优先级激励】：**省钱额为主 + 临期紧迫度为辅**。
+    优惠越大该组合得分越低（越容易被选中）；优惠额相当时，快过期的优先用掉。
     """
+    COUPON_SAVE_W = 0.10     # 每省 1 元的激励量级（主排序）
+    COUPON_URGENT_W = 0.20   # 临期紧迫度的激励量级（加分项）
+
     def _score(combo, kcal_target, protein_target):
         t = totals(combo)
         kcal_gap = abs(t["kcal"] - kcal_target) / max(kcal_target, 1)
@@ -180,11 +246,24 @@ def make_score(sodium_weight):
         sodium_penalty = max(0, t["sodium"] - 650) / 650
         density_bonus = -0.6 * (t["protein"] / max(t["kcal"], 1) * 100) / 10
         overshoot = max(0, kcal_gap - 0.15)     # 热量偏离 >15% 硬性不可接受
+
+        coupon_bonus = 0.0
+        if coupon_ctx is not None:
+            # 张数按去重计，避免同一券在组合里被重复计入
+            seen = set()
+            for i in combo:
+                c = coupon_ctx.lookup(i["name"])
+                if c and c["title"] not in seen:
+                    seen.add(c["title"])
+                    saved, urg, _ = coupon_ctx.value_of(i["name"])
+                    coupon_bonus += COUPON_SAVE_W * saved + COUPON_URGENT_W * urg
+
         return (100.0 * overshoot
                 + 10.0 * kcal_gap
                 + 3.0 * protein_gap
                 + sodium_weight * sodium_penalty
-                + density_bonus)
+                + density_bonus
+                - coupon_bonus)
     return _score
 
 
@@ -224,9 +303,12 @@ def pick_meal(items, main_kinds, side_kinds, drink_kinds,
     return best
 
 
-def build_plan(items, target, sodium_weight=0.5):
-    """生成全天三餐方案。早餐 25% / 午餐 40% / 晚餐 35%。"""
-    score_fn = make_score(sodium_weight)
+def build_plan(items, target, sodium_weight=0.5, coupon_ctx=None):
+    """生成全天三餐方案。早餐 25% / 午餐 40% / 晚餐 35%。
+
+    coupon_ctx 非空时，求解会优先选用带临期券的餐品。
+    """
+    score_fn = make_score(sodium_weight, coupon_ctx)
     meals = [
         ("早餐", ["breakfast_main", "breakfast_side"], ["breakfast_side"], ["drink"], 0.25),
         ("午餐", ["burger"], ["side"], ["drink"], 0.40),
@@ -276,29 +358,71 @@ def conflict_diagnosis(plan, target):
     return t, issues
 
 
-def fmt(plan, target, args, sodium_weight, label):
+def fmt(plan, target, args, sodium_weight, label, coupon_ctx=None):
     out = []
     out.append("=" * 62)
     out.append(f"麦麦减脂搭子 · 配餐方案［{label}］")
     out.append("=" * 62)
-    out.append(f"体重 {args.weight}kg → 目标 {args.target_weight}kg，周期 {args.weeks} 周")
-    out.append(f"基础代谢 BMR：{target['bmr']:.0f} kcal")
-    out.append(f"每日消耗 TDEE：{target['tdee']:.0f} kcal（{target['factor_desc']}）")
-    out.append(f"每日缺口：{target['daily_deficit']:.0f} kcal → 预期每周减 "
-               f"{target['weekly_loss']:.2f} kg")
+    if target.get("goal"):
+        out.append(f"目标模式：{target['goal_desc']}   体重 {args.weight}kg")
+    else:
+        out.append(f"体重 {args.weight}kg → 目标 {args.target_weight}kg，"
+                   f"周期 {args.weeks} 周")
+    src = target.get("bmr_source", "")
+    out.append(f"基础代谢 BMR：{target['bmr']:.0f} kcal"
+               + (f"（{src}）" if src else ""))
+    out.append(f"每日消耗 TDEE：{target['tdee']:.0f} kcal（{target['factor_desc']}）"
+               f"  ← 摄入目标是按 TDEE 算，不是按 BMR")
+    if target["daily_deficit"] >= 0:
+        out.append(f"每日缺口：{target['daily_deficit']:.0f} kcal → 预期每周减 "
+                   f"{target['weekly_loss']:.2f} kg")
+    else:
+        out.append(f"每日盈余：{-target['daily_deficit']:.0f} kcal → 预期每周增 "
+                   f"{-target['weekly_loss']:.2f} kg")
     out.append(f"每日摄入目标：{target['daily_kcal']:.0f} kcal")
-    out.append(f"蛋白目标：{target['protein_target']:.0f} g｜脂肪下限：{target['fat_min']:.0f} g"
+    out.append(f"蛋白目标：{target['protein_target']:.0f} g"
+               f"（{target.get('protein_source', '')}）")
+    out.append(f"脂肪下限：{target['fat_min']:.0f} g"
                f"｜碳水目标：{target['carb_target']:.0f} g")
     for w in target["warnings"]:
         out.append(f"⚠️  {w}")
+
+    # 与「摄入不超过基础代谢」这一常见误区做对照，让代价可见
+    if target.get("goal") and target["bmr"] < target["daily_kcal"] - 50:
+        bmr_only = target["bmr"]
+        gap_bmr = target["tdee"] - bmr_only
+        pct_bmr = gap_bmr / target["tdee"] * 100
+        if pct_bmr > 25:
+            flag = "已超 25% 安全上限 → 会掉肌肉"
+        elif pct_bmr > 20:
+            flag = "逼近上限，保肌吃紧"
+        else:
+            flag = "缺口偏小，减得慢"
+        out.append("")
+        out.append("【摄入目标对照：为什么不锚定 BMR】")
+        out.append(f"  若按「不超过 BMR」  {bmr_only:.0f} kcal"
+                   f"  → 缺口 {gap_bmr:.0f}（{pct_bmr:.1f}%）｜{flag}")
+        out.append(f"  本工具建议摄入      {target['daily_kcal']:.0f} kcal"
+                   f"  → 缺口 {target['daily_deficit']:.0f}"
+                   f"（{target['daily_deficit']/target['tdee']*100:.1f}%）"
+                   f"｜锚定 TDEE，保住肌肉")
     out.append("-" * 62)
 
     for mlabel, combo, kcal_t, prot_t in plan:
         t = totals(combo)
         out.append(f"\n【{mlabel}】目标 {kcal_t:.0f} kcal / 蛋白 {prot_t:.0f} g")
         for it in combo:
-            out.append(f"  · {it['name']:<22} {it['kcal']:>6.0f} kcal  "
-                       f"蛋白 {it['protein']:>5.0f}g  钠 {it['sodium']:>5.0f}mg")
+            line = (f"  · {it['name']:<22} {it['kcal']:>6.0f} kcal  "
+                    f"蛋白 {it['protein']:>5.0f}g  钠 {it['sodium']:>5.0f}mg")
+            if coupon_ctx is not None:
+                c = coupon_ctx.lookup(it["name"])
+                if c:
+                    hours = c.get("_until")
+                    tip = f"  🎫用券「{c['title']}」"
+                    if c["urgency"] >= 0.6:
+                        tip += " ⏰临期"
+                    line += tip
+            out.append(line)
         out.append(f"  小计：{t['kcal']:.0f} kcal｜蛋白 {t['protein']:.0f}g"
                    f"｜脂肪 {t['fat']:.0f}g｜碳水 {t['carb']:.0f}g｜钠 {t['sodium']:.0f}mg")
 
@@ -314,7 +438,162 @@ def fmt(plan, target, args, sodium_weight, label):
     for msg in issues:
         out.append(f"⚠️  {msg}")
     out.append("=" * 62)
+
+    if coupon_ctx is not None:
+        out.extend(render_coupon_report(plan, coupon_ctx))
     return "\n".join(out)
+
+
+def render_coupon_tradeoff(plan_coupon, plan_base, coupon_ctx):
+    """用券 vs 不用券 的取舍对比。
+
+    这是「不美化结果」原则的延伸：既然用券会挤占营养，
+    就必须把这个代价摆出来，让用户自己判断值不值。
+    """
+    tc, tb = plan_totals(plan_coupon), plan_totals(plan_base)
+
+    def saved_of(plan):
+        tot = 0.0
+        titles = set()
+        for _, combo, _, _ in plan:
+            for it in combo:
+                c = coupon_ctx.lookup(it["name"])
+                if c and c["title"] not in titles:
+                    titles.add(c["title"])
+                    base = float(c.get("listPrice") or 0)
+                    final = float(c.get("couponPrice") or base)
+                    tot += max(0.0, round(base - final, 2))
+        return tot
+
+    sc, sb = saved_of(plan_coupon), saved_of(plan_base)
+    d_prot = tc["protein"] - tb["protein"]
+    d_kcal = tc["kcal"] - tb["kcal"]
+    d_na = tc["sodium"] - tb["sodium"]
+    d_money = sc - sb
+
+    same = (abs(d_prot) < 0.5 and abs(d_kcal) < 5 and abs(d_money) < 0.005)
+    if same:
+        return ""
+
+    out = []
+    out.append("")
+    out.append("─" * 62)
+    out.append("用券的代价（对比不用券的方案）")
+    out.append("─" * 62)
+    out.append(f"  蛋白 {d_prot:+.0f} g｜热量 {d_kcal:+.0f} kcal"
+               f"｜钠 {d_na:+.0f} mg｜省下 ¥{d_money:+.2f}")
+    if d_prot < -0.5 and d_money > 0:
+        out.append("  ⚠️  用券省了钱但牺牲了蛋白。若该券优惠额不大，")
+        out.append("     建议把它单独用掉（比如只买那杯咖啡），不挤进正餐方案。")
+    out.append("─" * 62)
+    return "\n".join(out)
+
+
+def render_coupon_report(plan, coupon_ctx):
+    """渲染券使用情况：优先级排序 / 已用 / 单独使用建议 / 被排除 / 未匹配。"""
+    out = []
+    out.append("")
+    out.append("=" * 62)
+    out.append("券使用情况")
+    out.append("=" * 62)
+
+    used_titles = set()
+    used = []
+    for _, combo, _, _ in plan:
+        for it in combo:
+            c = coupon_ctx.lookup(it["name"])
+            if c and c["title"] not in used_titles:
+                used_titles.add(c["title"])
+                used.append(c)
+
+    # 券优先级排序：省钱额为主、临期加分为辅
+    ranked = []
+    for c in coupon_ctx.usable:
+        saved, urg, score = coupon_ctx.value_of(c.get("menuName") or c["title"])
+        ranked.append((score, saved, urg, c))
+    ranked.sort(key=lambda x: (-x[0], x[3]["title"]))
+
+    total_saved = 0.0
+    if used:
+        for c in used:
+            base = float(c.get("listPrice") or 0)
+            final = float(c.get("couponPrice") or base)
+            saved = max(0.0, round(base - final, 2))
+            total_saved += saved
+            until = c.get("validUntil", "—")
+            tag = " ⏰临期" if c["urgency"] >= 0.6 else ""
+            if saved > 0:
+                out.append(f"  🎫 {c['title']}  ¥{base:.2f} → ¥{final:.2f}"
+                           f"  省 ¥{saved:.2f}（{until} 到期）{tag}")
+            else:
+                out.append(f"  🎫 {c['title']}  （{until} 到期）{tag}")
+        if total_saved > 0:
+            out.append("  ─────────────────────────")
+            out.append(f"  本次方案用券 {len(used)} 张，立省 ¥{total_saved:.2f}")
+    else:
+        out.append("  本次方案未用到任何可用券。")
+
+    if ranked:
+        out.append("")
+        out.append("  券优先级（省钱额为主 + 临期加分）：")
+        for i, (score, saved, urg, c) in enumerate(ranked, 1):
+            money = f"省 ¥{saved:.2f}" if saved > 0 else "价格未知"
+            tag = " ⏰临期" if urg >= 0.6 else ""
+            mark = " ✔本方案已用" if c["title"] in used_titles else ""
+            out.append(f"   {i}. {c['title']:<20} {money:>9}"
+                       f"  综合 {score:>4.2f}{tag}{mark}")
+
+    # 未用上的券：给出可执行的单独使用建议
+    missed = [x for x in ranked if x[3]["title"] not in used_titles]
+    if missed and not used:
+        out.append("")
+        out.append("  ⚠️  本方案没用上券 —— 券多绑在低蛋白/低热量商品上，")
+        out.append("     与当前高蛋白目标冲突。用券不等于划算，代价见下方对比。")
+    if missed:
+        out.append("")
+        out.append("  未用上的券 · 单独使用建议：")
+        for score, saved, urg, c in missed:
+            until = c.get("validUntil", "—")
+            if urg >= 0.6:
+                when = f"⏰ {until} 到期，建议尽快单独下一单用掉"
+            elif saved > 0:
+                when = f"不急（{until}），但属你手上优惠较大的几张"
+            else:
+                when = f"{until} 到期"
+            out.append(f"     · {c['title']} —— {when}")
+
+    if coupon_ctx.excluded:
+        out.append("")
+        out.append(f"  ❌ 被排除的券（{len(coupon_ctx.excluded)} 张，不计入优惠）：")
+        for c in coupon_ctx.excluded:
+            out.append(f"     · {c['title']}  —— {c.get('_reason', '不可用')}")
+
+    # 未匹配：可用但拿不到商品名/编码，无法与餐品对应
+    unmapped = [c for c in coupon_ctx.usable if not c["_key"]]
+    if unmapped:
+        out.append("")
+        out.append("  ⚪ 未能匹配到餐品的券（缺商品编码，本工具不臆测映射）：")
+        for c in unmapped:
+            out.append(f"     · {c['title']}")
+    out.append("=" * 62)
+    return out
+
+
+# 各参数的合理区间（用于拦截明显的输入错误，如把 78 敲成 780）
+PLAUSIBLE = {
+    "体重": (25, 300),
+    "身高": (100, 250),
+    "年龄": (10, 100),
+    "目标体重": (25, 300),
+}
+
+
+def _check_spot(value, name):
+    """输入合理性校验。越界直接报错，避免算出荒唐方案。"""
+    lo, hi = PLAUSIBLE[name]
+    if not (lo <= value <= hi):
+        print(f"❌ {name} {value} 超出合理范围（{lo}~{hi}），请检查是否输错")
+        raise SystemExit(1)
 
 
 def main():
@@ -324,22 +603,79 @@ def main():
     p.add_argument("--age", type=int, required=True, help="年龄")
     p.add_argument("--sex", choices=["male", "female"], required=True)
     p.add_argument("--activity", choices=list(ACTIVITY), default="light")
-    p.add_argument("--target-weight", type=float, required=True)
+    p.add_argument("--target-weight", type=float, default=None,
+                   help="期望体重 kg（与 --weeks 搭配；若用 --goal 则不必填）")
     p.add_argument("--weeks", type=float, default=12, help="期望达成周期（周）")
+    p.add_argument("--goal", choices=list(GOALS), default=None,
+                   help="目标模式：cut=减脂 / recomp=增肌减脂 / gain=增肌。"
+                        "指定后锚点改为 TDEE，无需 target-weight")
+    p.add_argument("--bodyfat", type=float, default=None,
+                   help="体脂率 %%（体脂秤/InBody 等）。提供后蛋白按【瘦体重】计算")
+    p.add_argument("--bmr", type=float, default=None,
+                   help="实测基础代谢率 kcal（体脂秤/InBody 等）。"
+                        "提供后优先于公式估算")
     p.add_argument("--mode", choices=["protein", "sodium", "both"], default="both",
                    help="protein=蛋白优先 / sodium=控钠优先 / both=两种都给")
+    p.add_argument("--coupons", default=None,
+                   help="券快照 JSON 路径。提供后配餐会优先使用最优惠与临期券")
     args = p.parse_args()
+
+    _check_spot(args.weight, "体重")
+    _check_spot(args.height, "身高")
+    _check_spot(args.age, "年龄")
+    if args.goal is None:
+        if args.target_weight is None:
+            print("❌ 需要 --target-weight（期望体重）或 --goal（目标模式），"
+                  "至少给一个")
+            return 1
+        _check_spot(args.target_weight, "目标体重")
+        if args.weeks <= 0:
+            print("❌ 周期必须大于 0 周")
+            return 1
+    if args.bodyfat is not None and not (2 <= args.bodyfat <= 65):
+        print(f"❌ 体脂率 {args.bodyfat}% 超出合理范围（2~65）")
+        return 1
+    if args.bmr is not None and args.bmr <= 0:
+        print("❌ 基础代谢率必须大于 0")
+        return 1
 
     items = load_items()
     target = build_target(args)
+
+    # 券上下文（可选）：让配餐优先使用临期券
+    coupon_ctx = None
+    if args.coupons:
+        try:
+            from coupon_context import CouponContext, load_coupons
+        except ImportError:
+            print("❌ 找不到 coupon_context 模块，请确认 scripts/ 目录完整")
+            return 1
+        try:
+            usable, excluded, cmeta = load_coupons(args.coupons)
+        except FileNotFoundError:
+            print(f"❌ 券快照文件不存在：{args.coupons}")
+            return 1
+        except (json.JSONDecodeError, ValueError) as e:
+            print(f"❌ 券快照格式错误：{e}")
+            return 1
+        coupon_ctx = CouponContext(usable, excluded, cmeta)
+        s = coupon_ctx.summary()
+        print(f"[券上下文] 可用 {s['usable']} 张（其中临期 {s['urgent']} 张）"
+              f"｜排除 {s['excluded']} 张")
 
     modes = [("蛋白优先", 0.5), ("控钠优先", 4.0)] if args.mode == "both" \
         else [("蛋白优先", 0.5)] if args.mode == "protein" \
         else [("控钠优先", 4.0)]
 
     for label, sw in modes:
-        plan = build_plan(items, target, sodium_weight=sw)
-        print(fmt(plan, target, args, sw, label))
+        plan = build_plan(items, target, sodium_weight=sw, coupon_ctx=coupon_ctx)
+        print(fmt(plan, target, args, sw, label, coupon_ctx=coupon_ctx))
+        if coupon_ctx is not None:
+            # 同时算一份"不用券"的方案，把用券的营养代价如实摆出来
+            base_plan = build_plan(items, target, sodium_weight=sw, coupon_ctx=None)
+            tradeoff = render_coupon_tradeoff(plan, base_plan, coupon_ctx)
+            if tradeoff:
+                print(tradeoff)
         print()
 
     # 目标冲突诊断
@@ -363,4 +699,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
