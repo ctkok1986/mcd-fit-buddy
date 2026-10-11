@@ -268,10 +268,14 @@ def make_score(sodium_weight, coupon_ctx=None):
 
 
 def pick_meal(items, main_kinds, side_kinds, drink_kinds,
-              kcal_target, protein_target, forbid, score_fn, max_sides=2):
+              kcal_target, protein_target, forbid, score_fn, max_sides=2,
+              hard_cap=None):
     """槽位式求解：主食(必选1) + 配菜(0~max_sides) + 饮品(可选1)。
 
     同类去重：同一子类在一餐内至多出现一次，避免"两杯中杯奶铁"这类荒谬组合。
+
+    hard_cap 非空时，只接受总热量 ≤ hard_cap 的组合；**无解则返回 None**。
+    这是硬约束——仅靠打分函数的软惩罚不够：额度极紧时它仍会选出远超预算的组合。
     """
     def pool_of(kinds):
         return [i for i in items
@@ -297,10 +301,24 @@ def pick_meal(items, main_kinds, side_kinds, drink_kinds,
                              for x in ([m] + (s or []))):
                     continue
                 combo = [m] + (s or []) + (d or [])
+                if hard_cap is not None and \
+                        sum(x["kcal"] for x in combo) > hard_cap:
+                    continue
                 sc = score_fn(combo, kcal_target, protein_target)
                 if best is None or sc < best[0]:
                     best = (sc, combo)
     return best
+
+
+def minimal_combo(items, slot, forbid):
+    """额度不足时的兜底：取该餐次可选范围内热量最低的单个餐品。"""
+    pool = [i for i in items
+            if classify(i["name"]) in slot["main"]
+            and i["name"] not in forbid
+            and i["kcal"] > 0]
+    if not pool:
+        return []
+    return [min(pool, key=lambda x: x["kcal"])]
 
 
 def build_plan(items, target, sodium_weight=0.5, coupon_ctx=None):
@@ -327,6 +345,91 @@ def build_plan(items, target, sodium_weight=0.5, coupon_ctx=None):
                          target["daily_kcal"] * ratio,
                          target["protein_target"] * ratio))
     return plan
+
+
+# 餐次槽位定义：任意餐次组合都可求解。
+# w 为全天热量占比（早 25% / 午 40% / 晚 35%），仅用于给该餐次定"标准额度"。
+MEAL_SLOTS = {
+    "breakfast": {"label": "早餐", "main": ["breakfast_main", "breakfast_side"],
+                  "side": ["breakfast_side"], "drink": ["drink"], "w": 0.25},
+    "lunch": {"label": "午餐", "main": ["burger"], "side": ["side"],
+              "drink": ["drink"], "w": 0.40},
+    "dinner": {"label": "晚餐", "main": ["burger"], "side": ["side"],
+               "drink": ["drink"], "w": 0.35},
+    "snack": {"label": "加餐", "main": ["side", "dessert"], "side": [],
+              "drink": ["drink"], "w": 0.15},
+}
+
+
+def build_slot_plan(items, target, solve_keys, known_meals,
+                    sodium_weight=0.5, coupon_ctx=None):
+    """按指定餐次求解，并扣除已知餐次（已吃或计划吃）占用的额度。
+
+    solve_keys  : 需要配麦当劳的餐次，如 ['breakfast'] / ['breakfast','lunch']
+    known_meals : 已知餐次 [{'label':'午餐','kcal':800,'protein':30,'sodium':1200}]
+
+    额度分配规则：
+      每个待解餐次的标准额度 = 全天目标 × 该餐次权重
+      剩余额度 = 全天目标 − 已知餐次合计
+      剩余额度不足时按比例压缩；充足时不超发（余额自动留作余量）
+
+    返回 (plan, info)。plan 元素为 (餐次名, 组合, 热量目标, 蛋白目标)。
+    """
+    score_fn = make_score(sodium_weight, coupon_ctx)
+
+    known_kcal = sum(float(m.get("kcal") or 0) for m in known_meals)
+    known_protein = sum(float(m.get("protein") or 0) for m in known_meals)
+    known_sodium = sum(float(m.get("sodium") or 0) for m in known_meals)
+
+    left_kcal = target["daily_kcal"] - known_kcal
+    left_protein = target["protein_target"] - known_protein
+
+    std = {k: target["daily_kcal"] * MEAL_SLOTS[k]["w"] for k in solve_keys}
+    total_std = sum(std.values())
+    if total_std <= 0:
+        scale = 0.0
+    elif left_kcal >= total_std:
+        scale = 1.0                      # 额度充足：按标准分配，不超发
+    else:
+        scale = max(0.0, left_kcal / total_std)   # 额度不足：等比压缩
+
+    plan, used, notes = [], set(), {}
+    for k in solve_keys:
+        slot = MEAL_SLOTS[k]
+        kcal_t = std[k] * scale
+        prot_t = target["protein_target"] * slot["w"] * scale
+        if kcal_t <= 1.0:
+            plan.append((slot["label"], [], kcal_t, prot_t))
+            continue
+        # 硬约束：组合总热量不得超过该餐次额度的 115%
+        hard_cap = kcal_t * 1.15
+        res = pick_meal(items, slot["main"], slot["side"], slot["drink"],
+                        kcal_t, prot_t, used, score_fn, hard_cap=hard_cap)
+        if res:
+            combo = res[1]
+        else:
+            # 无可行解：给最低热量兜底，并如实标注超出多少（不硬凑）
+            combo = minimal_combo(items, slot, used)
+            if combo:
+                actual = sum(i["kcal"] for i in combo)
+                notes[slot["label"]] = (
+                    f"额度 {kcal_t:.0f} kcal 内无可行组合；"
+                    f"已给最低热量兜底 {actual:.0f} kcal"
+                    f"（超出 {actual - kcal_t:.0f} kcal）")
+            else:
+                notes[slot["label"]] = "该餐次内无可选餐品"
+        used |= {i["name"] for i in combo}
+        plan.append((slot["label"], combo, kcal_t, prot_t))
+
+    info = {
+        "known_kcal": known_kcal, "known_protein": known_protein,
+        "known_sodium": known_sodium,
+        "left_kcal": left_kcal, "left_protein": left_protein,
+        "scale": scale, "solve_keys": solve_keys,
+        "solve_labels": [MEAL_SLOTS[k]["label"] for k in solve_keys],
+        "notes": notes,
+    }
+    return plan, info
 
 
 def plan_totals(plan):
@@ -438,6 +541,117 @@ def fmt(plan, target, args, sodium_weight, label, coupon_ctx=None):
     for msg in issues:
         out.append(f"⚠️  {msg}")
     out.append("=" * 62)
+
+    if coupon_ctx is not None:
+        out.extend(render_coupon_report(plan, coupon_ctx))
+    return "\n".join(out)
+
+
+def fmt_slot(plan, target, args, label, info, known_meals, coupon_ctx=None):
+    """渲染餐次填空方案：已知餐次 → 额度分配 → 待解餐次 → 全天合计。"""
+    out = []
+    W = 66
+    out.append("=" * W)
+    out.append(f"麦麦减脂搭子 · 餐次配餐［{label}］")
+    out.append("=" * W)
+
+    if target.get("goal"):
+        out.append(f"目标模式：{target['goal_desc']}   体重 {args.weight}kg")
+    else:
+        out.append(f"体重 {args.weight}kg → 目标 {args.target_weight}kg，"
+                   f"周期 {args.weeks} 周")
+    src = target.get("bmr_source", "")
+    out.append(f"基础代谢 BMR：{target['bmr']:.0f} kcal"
+               + (f"（{src}）" if src else ""))
+    out.append(f"每日消耗 TDEE：{target['tdee']:.0f} kcal（{target['factor_desc']}）")
+    if target["daily_deficit"] >= 0:
+        out.append(f"每日缺口：{target['daily_deficit']:.0f} kcal → 预期每周减 "
+                   f"{target['weekly_loss']:.2f} kg")
+    else:
+        out.append(f"每日盈余：{-target['daily_deficit']:.0f} kcal → 预期每周增 "
+                   f"{-target['weekly_loss']:.2f} kg")
+    out.append(f"每日摄入目标：{target['daily_kcal']:.0f} kcal")
+    out.append(f"蛋白目标：{target['protein_target']:.0f} g"
+               f"（{target.get('protein_source', '')}）")
+    for w in target["warnings"]:
+        out.append(f"⚠️  {w}")
+
+    # ── 已知餐次 ──
+    if known_meals:
+        out.append("")
+        out.append("-" * W)
+        out.append("【已知餐次】（不配麦当劳，仅占用额度）")
+        out.append("-" * W)
+        for m in known_meals:
+            na = m.get("sodium")
+            na_s = f"｜钠 {float(na):.0f}mg" if na else ""
+            out.append(f"  · {m['label']:<8}{m['kcal']:>6.0f} kcal"
+                       f"｜蛋白 {float(m.get('protein') or 0):>5.0f} g{na_s}")
+        out.append(f"  合计      {info['known_kcal']:>6.0f} kcal"
+                   f"｜蛋白 {info['known_protein']:>5.0f} g"
+                   + (f"｜钠 {info['known_sodium']:.0f} mg"
+                      if info["known_sodium"] else ""))
+
+    # ── 额度分配 ──
+    out.append("")
+    out.append("-" * W)
+    out.append("【麦当劳待配餐次 · 额度分配】")
+    out.append("-" * W)
+    left_k = info["left_kcal"]
+    if left_k < 0:
+        out.append(f"  ⚠️  已知餐次已超出目标 {-left_k:.0f} kcal —— 剩余额度为负。")
+        out.append("     今天已无法达成目标，下方只给最低热量建议。")
+    else:
+        out.append(f"  剩余额度   {left_k:.0f} kcal｜蛋白 "
+                   f"{info['left_protein']:.0f} g（= 目标 − 已知）")
+        if info["scale"] < 0.999:
+            out.append(f"  额度不足标准分配，已按 {info['scale']*100:.0f}% "
+                       f"等比压缩各餐次")
+    out.append("-" * W)
+
+    # ── 各餐次方案 ──
+    for mlabel, combo, kcal_t, prot_t in plan:
+        out.append("")
+        note = info.get("notes", {}).get(mlabel)
+        if not combo:
+            out.append(f"【{mlabel}】额度不足以配餐（目标 {kcal_t:.0f} kcal）")
+            if note:
+                out.append(f"  ⚠️  {note}")
+            continue
+        t = totals(combo)
+        out.append(f"【{mlabel}】目标 {kcal_t:.0f} kcal / 蛋白 {prot_t:.0f} g")
+        for it in combo:
+            out.append(f"  · {it['name']:<22} {it['kcal']:>6.0f} kcal"
+                       f"  蛋白 {it['protein']:>5.0f}g  钠 {it['sodium']:>5.0f}mg")
+        out.append(f"  小计：{t['kcal']:.0f} kcal｜蛋白 {t['protein']:.0f}g"
+                   f"｜脂肪 {t['fat']:.0f}g｜碳水 {t['carb']:.0f}g"
+                   f"｜钠 {t['sodium']:.0f}mg")
+        if note:
+            out.append(f"  ⚠️  {note}")
+
+    # ── 全天合计（已知 + 麦当劳）──
+    pt = plan_totals(plan)
+    tot_kcal = pt["kcal"] + info["known_kcal"]
+    tot_prot = pt["protein"] + info["known_protein"]
+    tot_na = pt["sodium"] + info["known_sodium"]
+    dk = target["daily_kcal"] - tot_kcal
+    dp = target["protein_target"] - tot_prot
+
+    out.append("")
+    out.append("=" * W)
+    out.append("【全天合计】（已知餐次 + 麦当劳配餐）")
+    out.append("=" * W)
+    out.append(f"  热量   {tot_kcal:>7.0f} / {target['daily_kcal']:.0f} kcal"
+               f"     " + (f"剩余 {dk:.0f}" if dk >= 0 else f"超标 {abs(dk):.0f}"))
+    out.append(f"  蛋白   {tot_prot:>7.0f} / {target['protein_target']:.0f} g"
+               f"     " + (f"缺口 {dp:.0f}" if dp > 0 else f"超出 {abs(dp):.0f}"))
+    if tot_na:
+        if tot_na <= SODIUM_DAILY_CAP:
+            na_note = "✅ 在限内"
+        else:
+            na_note = f"❌ 超上限 {tot_na - SODIUM_DAILY_CAP:.0f} mg"
+        out.append(f"  钠     {tot_na:>7.0f} / {SODIUM_DAILY_CAP} mg    {na_note}")
+    out.append("=" * W)
 
     if coupon_ctx is not None:
         out.extend(render_coupon_report(plan, coupon_ctx))
@@ -596,6 +810,35 @@ def _check_spot(value, name):
         raise SystemExit(1)
 
 
+def parse_known(raw_list):
+    """解析 --known 参数：'午餐=800,30,1200' → dict。
+
+    格式：名称=热量,蛋白[,钠]。钠可省略。
+    已吃与计划吃在数学上等价（都占用额度），故统一处理。
+    """
+    out = []
+    for raw in raw_list:
+        if "=" not in raw:
+            raise ValueError(
+                f"--known 格式应为 名称=热量,蛋白[,钠]，收到：{raw}")
+        name, nums = raw.split("=", 1)
+        name = name.strip()
+        if not name:
+            raise ValueError(f"--known 缺少餐次名称：{raw}")
+        parts = [x.strip() for x in nums.split(",")]
+        if len(parts) < 2:
+            raise ValueError(f"--known 至少需要热量与蛋白两项：{raw}")
+        try:
+            kcal = float(parts[0])
+            protein = float(parts[1])
+            sodium = float(parts[2]) if len(parts) > 2 and parts[2] else 0.0
+        except ValueError:
+            raise ValueError(f"--known 数值无法解析：{raw}")
+        out.append({"label": name, "kcal": kcal,
+                    "protein": protein, "sodium": sodium})
+    return out
+
+
 def main():
     p = argparse.ArgumentParser(description="麦麦减脂搭子 · 配餐优化引擎")
     p.add_argument("--weight", type=float, required=True, help="当前体重 kg")
@@ -618,6 +861,13 @@ def main():
                    help="protein=蛋白优先 / sodium=控钠优先 / both=两种都给")
     p.add_argument("--coupons", default=None,
                    help="券快照 JSON 路径。提供后配餐会优先使用最优惠与临期券")
+    p.add_argument("--solve", default="breakfast,lunch,dinner",
+                   help="要配麦当劳的餐次，逗号分隔（breakfast/lunch/dinner/snack）。"
+                        "例：只配早餐用 --solve breakfast；"
+                        "配早餐+午餐用 --solve breakfast,lunch。默认三餐全配")
+    p.add_argument("--known", action="append", default=[],
+                   help="已知餐次（已吃或计划吃），格式 名称=热量,蛋白[,钠]，"
+                        "可重复。例：--known \"午餐=800,30,1200\"")
     args = p.parse_args()
 
     _check_spot(args.weight, "体重")
@@ -638,6 +888,37 @@ def main():
     if args.bmr is not None and args.bmr <= 0:
         print("❌ 基础代谢率必须大于 0")
         return 1
+
+    # 解析要配麦当劳的餐次
+    solve_keys = [x.strip() for x in args.solve.split(",") if x.strip()]
+    if not solve_keys:
+        print("❌ --solve 不能为空")
+        return 1
+    bad = [k for k in solve_keys if k not in MEAL_SLOTS]
+    if bad:
+        print(f"❌ 未知餐次：{', '.join(bad)}"
+              f"（可选：{', '.join(MEAL_SLOTS)}）")
+        return 1
+    if len(set(solve_keys)) != len(solve_keys):
+        print("❌ --solve 中存在重复餐次")
+        return 1
+
+    # 解析已知餐次（已吃或计划吃）
+    try:
+        known = parse_known(args.known)
+    except ValueError as e:
+        print(f"❌ {e}")
+        return 1
+    for m in known:
+        if not (0 <= m["kcal"] <= 5000):
+            print(f"❌ 已知餐次「{m['label']}」热量 {m['kcal']:g} 不合理（0~5000）")
+            return 1
+        if not (0 <= m["protein"] <= 400):
+            print(f"❌ 已知餐次「{m['label']}」蛋白 {m['protein']:g} 不合理（0~400）")
+            return 1
+        if m["sodium"] and not (0 <= m["sodium"] <= 20000):
+            print(f"❌ 已知餐次「{m['label']}」钠 {m['sodium']:g} 不合理（0~20000）")
+            return 1
 
     items = load_items()
     target = build_target(args)
@@ -668,28 +949,42 @@ def main():
         else [("控钠优先", 4.0)]
 
     for label, sw in modes:
-        plan = build_plan(items, target, sodium_weight=sw, coupon_ctx=coupon_ctx)
-        print(fmt(plan, target, args, sw, label, coupon_ctx=coupon_ctx))
+        plan, info = build_slot_plan(items, target, solve_keys, known,
+                                     sodium_weight=sw, coupon_ctx=coupon_ctx)
+        print(fmt_slot(plan, target, args, label, info, known,
+                       coupon_ctx=coupon_ctx))
         if coupon_ctx is not None:
             # 同时算一份"不用券"的方案，把用券的营养代价如实摆出来
-            base_plan = build_plan(items, target, sodium_weight=sw, coupon_ctx=None)
+            base_plan, _ = build_slot_plan(items, target, solve_keys, known,
+                                           sodium_weight=sw, coupon_ctx=None)
             tradeoff = render_coupon_tradeoff(plan, base_plan, coupon_ctx)
             if tradeoff:
                 print(tradeoff)
+        print()
         print()
 
     # 目标冲突诊断
     print("=" * 62)
     print("目标冲突诊断")
     print("=" * 62)
-    plan_p = build_plan(items, target, sodium_weight=0.5)
-    plan_s = build_plan(items, target, sodium_weight=4.0)
+    plan_p, info_p = build_slot_plan(items, target, solve_keys, known,
+                                     sodium_weight=0.5)
+    plan_s, _ = build_slot_plan(items, target, solve_keys, known,
+                                sodium_weight=4.0)
     tp, ts = plan_totals(plan_p), plan_totals(plan_s)
+    # 只有「三餐全配 + 无已知餐次」才是纯麦当劳场景，
+    # 此时缺的部分无处可补，才谈得上"不可兼得"。
+    full_mcd = (set(solve_keys) == {"breakfast", "lunch", "dinner"}
+                and not known)
+    scope = "纯麦当劳餐单" if full_mcd else "麦当劳这部分"
     print(f"  蛋白优先：蛋白 {tp['protein']:.0f} g | 钠 {tp['sodium']:.0f} mg")
     print(f"  控钠优先：蛋白 {ts['protein']:.0f} g | 钠 {ts['sodium']:.0f} mg")
     print()
-    if tp["sodium"] > SODIUM_DAILY_CAP and ts["protein"] < target["protein_target"] * 0.95:
-        print("  结论：在纯麦当劳餐单上，「热量达标 + 蛋白达标 + 钠达标」三者不可兼得。")
+    if not full_mcd:
+        print(f"  注：当前只配 {len(solve_keys)} 个餐次，其余餐次由非麦当劳补足，")
+        print(f"      故此处只对比{scope}的营养，不作「不可兼得」判定。")
+    elif tp["sodium"] > SODIUM_DAILY_CAP and ts["protein"] < target["protein_target"] * 0.95:
+        print(f"  结论：在{scope}上，「热量达标 + 蛋白达标 + 钠达标」三者不可兼得。")
         print(f"  · 要蛋白 {target['protein_target']:.0f} g，钠会到 {tp['sodium']:.0f} mg 左右")
         print(f"  · 要控钠 {SODIUM_DAILY_CAP} mg 以内，蛋白只有 {ts['protein']:.0f} g 左右")
         print("  建议：选定一侧作为主线，另一侧用非麦当劳食物补齐（如无糖希腊酸奶、")

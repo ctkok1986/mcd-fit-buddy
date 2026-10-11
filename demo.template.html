@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>麦麦减脂搭子 · 在麦当劳吃出腹肌</title>
+<style>
+:root{
+  --bg:#0e1116; --card:#171b22; --card2:#1e232c; --line:#2a3038;
+  --txt:#e8eaed; --dim:#98a2b3; --red:#DA291C; --gold:#FFC72C;
+  --green:#4ade80; --orange:#fb923c; --blue:#60a5fa;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--txt); line-height:1.6;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+a{color:var(--gold);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ── Hero ── */
+.hero{padding:72px 0 48px;border-bottom:1px solid var(--line);
+  background:radial-gradient(1000px 400px at 15% -10%,rgba(218,41,28,.20),transparent 60%)}
+.tag{display:inline-block;font-size:12px;letter-spacing:.14em;color:var(--gold);
+  border:1px solid rgba(255,199,44,.4);border-radius:999px;padding:5px 14px;margin-bottom:22px}
+h1{font-size:clamp(30px,5vw,52px);line-height:1.15;font-weight:800;letter-spacing:-.02em}
+h1 .hl{color:var(--red)}
+.sub{font-size:clamp(15px,1.6vw,18px);color:var(--dim);margin-top:16px;max-width:720px}
+.stats{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 20px;min-width:150px}
+.stat b{display:block;font-size:24px;color:var(--gold);font-weight:800;line-height:1.2}
+.stat span{font-size:12.5px;color:var(--dim)}
+
+/* ── 布局 ── */
+.grid{display:grid;grid-template-columns:340px 1fr;gap:22px;padding:40px 0}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+.card h3{font-size:15px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.card h3 .bar{width:3px;height:15px;background:var(--red);border-radius:2px}
+.card .hint{font-size:12.5px;color:var(--dim);margin-bottom:16px}
+
+/* ── 控件 ── */
+.field{margin-bottom:15px}
+.field label{display:flex;justify-content:space-between;font-size:13px;color:var(--dim);margin-bottom:7px}
+.field label b{color:var(--gold);font-weight:700}
+input[type=range]{width:100%;-webkit-appearance:none;height:5px;border-radius:3px;
+  background:var(--card2);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;
+  border-radius:50%;background:var(--red);cursor:pointer;border:3px solid var(--bg);
+  box-shadow:0 0 0 1px var(--red)}
+input[type=number],input[type=text]{width:100%;background:var(--card2);border:1px solid var(--line);
+  color:var(--txt);border-radius:8px;padding:9px 11px;font-size:14px;font-family:inherit}
+input:focus{outline:none;border-color:var(--red)}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-width:60px;background:var(--card2);border:1px solid var(--line);
+  color:var(--dim);border-radius:8px;padding:9px 6px;font-size:13px;cursor:pointer;
+  font-family:inherit;transition:.15s}
+.seg button:hover{border-color:#3d4650;color:var(--txt)}
+.seg button.on{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
+.meals{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.meals button{flex:1;min-width:80px;background:var(--card2);border:1px solid var(--line);
+  color:var(--dim);border-radius:9px;padding:11px 8px;cursor:pointer;font-size:13px;
+  font-family:inherit;transition:.15s;position:relative}
+.meals button.on{background:rgba(218,41,28,.16);border-color:var(--red);color:#fff;font-weight:700}
+.meals button .dot{display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:#3d4650;margin-right:6px;vertical-align:middle}
+.meals button.on .dot{background:var(--red)}
+.known{margin-bottom:11px}
+.known .krow{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.known .krow span{font-size:12.5px;color:var(--dim);min-width:44px}
+.known input{flex:1;font-size:13px;padding:7px 9px}
+.btn{width:100%;background:var(--gold);color:#1a1200;border:none;border-radius:9px;
+  padding:12px;font-size:14.5px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:4px}
+.btn:hover{filter:brightness(1.08)}
+
+/* ── 结果 ── */
+.stack{display:flex;flex-direction:column;gap:18px}
+.kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.kv:last-child{border-bottom:none}
+.kv span{color:var(--dim)}
+.kv b{font-weight:700}
+.big{font-size:30px;font-weight:800;color:var(--gold);line-height:1.15}
+.big small{font-size:13px;color:var(--dim);font-weight:400}
+.mealblk{border:1px solid var(--line);border-radius:11px;padding:13px;margin-bottom:11px;background:var(--card2)}
+.mealblk .mh{display:flex;justify-content:space-between;font-size:13px;margin-bottom:9px}
+.mealblk .mh b{color:var(--gold)}
+.item{display:flex;justify-content:space-between;font-size:13.5px;padding:4px 0}
+.item i{font-style:normal;color:var(--dim);font-size:12.5px}
+.sum{font-size:12.5px;color:var(--dim);margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.bars{margin-top:6px}
+.brow{margin-bottom:13px}
+.brow .bl{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px}
+.btrack{height:9px;background:var(--card2);border-radius:5px;overflow:hidden}
+.bfill{height:100%;border-radius:5px;transition:width .35s ease}
+.chip{display:inline-block;font-size:12px;padding:3px 10px;border-radius:999px;font-weight:600}
+.chip.ok{background:rgba(74,222,128,.15);color:var(--green)}
+.chip.bad{background:rgba(218,41,28,.18);color:#ff8a80}
+.chip.warn{background:rgba(251,146,60,.16);color:var(--orange)}
+.warnbox{background:rgba(251,146,60,.10);border-left:3px solid var(--orange);
+  border-radius:6px;padding:10px 13px;font-size:13px;margin-top:11px;color:#ffd9b3}
+.notebox{background:rgba(96,165,250,.10);border-left:3px solid var(--blue);
+  border-radius:6px;padding:10px 13px;font-size:13px;margin-top:11px;color:#c3ddff}
+.absgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
+@media(max-width:520px){.absgrid{grid-template-columns:1fr}}
+.absbox{background:var(--card2);border-radius:10px;padding:14px;text-align:center}
+.absbox .lab{font-size:12px;color:var(--dim);margin-bottom:6px}
+.absbox .val{font-size:22px;font-weight:800}
+.absbox .dsc{font-size:12px;color:var(--dim);margin-top:6px;line-height:1.45}
+footer{border-top:1px solid var(--line);padding:34px 0 54px;margin-top:40px;
+  font-size:13px;color:var(--dim)}
+footer b{color:var(--txt)}
+.fnote{font-size:12.5px;color:#6b7480;margin-top:14px;line-height:1.7}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="wrap">
+    <span class="tag">2026 麦当劳程序员创意开发大赛 · 参赛作品</span>
+    <h1>在麦当劳<br><span class="hl">吃出腹肌</span></h1>
+    <p class="sub">
+      内核不是节食，而是<strong>增肌减脂</strong>——在不掉肌肉的前提下减脂，能增肌更好。
+      填上体脂率与目标，它从 158 项官方营养数据里真实求解，并在补不上的地方<strong>如实告诉你补不上</strong>。
+    </p>
+    <div class="stats">
+      <div class="stat"><b>__ITEM_COUNT__</b><span>项官方营养数据</span></div>
+      <div class="stat"><b>251</b><span>项回归测试全通过</span></div>
+      <div class="stat"><b>7</b><span>种餐次组合</span></div>
+      <div class="stat"><b>9</b><span>个开发中修复的真缺陷</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+<div class="grid">
+
+  <!-- ── 左：参数 ── -->
+  <div class="card" style="height:fit-content;position:sticky;top:20px">
+    <h3><span class="bar"></span>你的参数</h3>
+    <p class="hint">改任意一项，右侧立即重算</p>
+
+    <div class="field">
+      <label>性别</label>
+      <div class="seg" id="sex">
+        <button data-v="male" class="on">男</button>
+        <button data-v="female">女</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>体重 <b><span id="weight_v">78</span> kg</b></label>
+      <input type="range" id="weight" min="40" max="150" step="0.5" value="78">
+    </div>
+
+    <div class="field">
+      <label>身高 <b><span id="height_v">175</span> cm</b></label>
+      <input type="range" id="height" min="145" max="200" step="1" value="175">
+    </div>
+
+    <div class="field">
+      <label>年龄 <b><span id="age_v">40</span> 岁</b></label>
+      <input type="range" id="age" min="18" max="70" step="1" value="40">
+    </div>
+
+    <div class="field">
+      <label>活动强度</label>
+      <div class="seg" id="activity">
+        <button data-v="sedentary">久坐</button>
+        <button data-v="light" class="on">轻度</button>
+        <button data-v="moderate">中度</button>
+        <button data-v="active">高度</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>体脂率 <b><span id="bodyfat_v">22</span> %</b>
+        <span style="color:#5c6570;font-size:11px">（不填则按体重算蛋白）</span></label>
+      <input type="range" id="bodyfat" min="0" max="45" step="0.5" value="22">
+    </div>
+
+    <div class="field">
+      <label>基础代谢 BMR（可选，实测值）
+        <span style="color:#5c6570;font-size:11px">留空用公式</span></label>
+      <input type="number" id="bmr" placeholder="留空则由公式估算" value="1600">
+    </div>
+
+    <div class="field">
+      <label>目标模式</label>
+      <div class="seg" id="goal">
+        <button data-v="cut">减脂</button>
+        <button data-v="recomp" class="on">增肌减脂</button>
+        <button data-v="gain">增肌</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>哪些餐在麦当劳吃？<span style="color:#5c6570;font-size:11px">点掉的不配</span></label>
+      <div class="meals" id="meals">
+        <button data-v="breakfast" class="on"><span class="dot"></span>早餐</button>
+        <button data-v="lunch" class="on"><span class="dot"></span>午餐</button>
+        <button data-v="dinner" class="on"><span class="dot"></span>晚餐</button>
+      </div>
+      <div class="known" id="known"></div>
+    </div>
+
+    <button class="btn" id="run">重新计算</button>
+  </div>
+
+  <!-- ── 右：结果 ── -->
+  <div class="stack">
+
+    <div class="card">
+      <h3><span class="bar"></span>一、你的每日目标</h3>
+      <p class="hint">摄入锚定 TDEE，不是锚定 BMR</p>
+      <div id="target"></div>
+    </div>
+
+    <div class="card">
+      <h3><span class="bar"></span>二、餐次方案</h3>
+      <p class="hint">只配你勾选的餐次，其余餐次作为额度约束扣除</p>
+      <div id="plan"></div>
+    </div>
+
+    <div class="card">
+      <h3><span class="bar"></span>三、麦当劳的结构性矛盾</h3>
+      <p class="hint">同一份餐单，蛋白与钠无法同时达标</p>
+      <div id="conflict"></div>
+    </div>
+
+    <div class="card">
+      <h3><span class="bar"></span>四、离「看得见腹肌」还有多远</h3>
+      <p class="hint">高体脂时腹肌被脂肪盖住，低体脂时可能被水盖住</p>
+      <div id="abs"></div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <b>麦麦减脂搭子（McFit Buddy）</b> ·
+    <a href="https://github.com/ctkok1986/mcd-fit-buddy">GitHub 仓库</a> ·
+    <a href="README.md">完整说明</a> ·
+    <a href="SKILL.md">技能定义</a>
+    <div class="fnote">
+      营养数据来自麦当劳官方 MCP 接口 <code>list-nutrition-foods</code> 快照（__ITEM_COUNT__ 项）。<br>
+      本页计算逻辑与仓库内 Python 引擎保持一致，并由对拍脚本逐项校验。<br>
+      标注「实测」的数值来自真实账户与真实门店调用；价格为示例快照，实际以门店为准。<br>
+      本工具输出仅供营养参考，<b>不构成医疗建议</b>；有基础疾病请咨询医生。
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   营养数据（由 tools/build_demo.py 从 data/nutrition.csv 注入）
+   格式：[名称, 热量kcal, 蛋白g, 脂肪g, 碳水g, 钠mg]
+   ══════════════════════════════════════════════════════════ */
+/*__ENGINE_BEGIN__
+  以下到 __ENGINE_END__ 之间是纯计算逻辑（无 DOM 依赖），
+  tools/verify_demo.py 会把这一段抽出来在 Node 里跑，
+  与本仓库 Python 引擎逐项对拍，确保网页与命令行结果一致。
+*/
+const RAW = __NUTRITION_DATA__;
+const ITEMS = RAW.map(r => ({
+  name: r[0], kcal: r[1], protein: r[2], fat: r[3], carb: r[4], sodium: r[5]
+}));
+
+/* ── 分类白名单：与 Python 引擎逐项一致 ──
+   曾出现「柠萌风味薄皮焦香V翅」因含「柠」被误判为饮品、
+   「巨无霸/麦香鸡/麦香鱼」因不含「堡」被漏判，故改用显式枚举。 */
+const DESSERT = new Set(["圆筒冰淇淋","朱古力新地","草莓新地","奥利奥麦旋风","草莓麦旋风",
+  "迷你朱古力新地","迷你草莓新地","柠檬拉明顿","草莓拉明顿","抹茶阿芙佳朵",
+  "咖啡阿芙佳朵","yeyeyeye奶冻款","yeyeyeye爆珠款"]);
+const BREAKFAST_MAIN = new Set(["猪柳麦满分","猪柳蛋麦满分","烟肉蛋麦满分","火腿扒麦满分",
+  "大脆鸡扒麦满分","原味板烧鸡腿麦满分","双层原味板烧鸡腿麦满分","原味板烧鸡腿炒双蛋堡",
+  "双层猪柳蛋麦满分","双层火腿扒麦满分","猪柳炒双蛋堡","火腿扒早安营养卷",
+  "图林根香肠早安营养卷","皮蛋鸡肉粥","雪菜脆笋鸡肉粥"]);
+const BREAKFAST_SIDE = new Set(["脆薯饼","脆香油条","德式图林根香肠","苹果片"]);
+const BURGER = new Set(["吉士汉堡包","双层吉士汉堡","麦辣鸡腿汉堡","板烧鸡腿堡","巨无霸",
+  "麦香鸡","麦香鱼","培根蔬萃双层牛堡","不素之霸双层牛堡","双层深海鳕鱼堡","儿童鱼排堡",
+  "培根安格斯厚牛堡","芝士安格斯厚牛堡","芝士双层安格斯厚牛堡","培根双层安格斯厚牛堡",
+  "酥酥多笋卷","鲜蔬蛋沙拉叠叠卷","鸡肉蛋沙拉叠叠卷"]);
+const SIDE = new Set(["中薯条","大薯条","小薯条","迷你薯条","脆脆薯条","麦乐鸡5块","麦乐鸡4块",
+  "麦辣鸡翅-2块","那么大鸡排","麦麦趣鸡球","薄皮焦香V翅","柠萌风味薄皮焦香V翅",
+  "蜜汁BBQ风味薄皮脆汁鸡-带骨里脊","蜜汁BBQ风味薄皮脆汁鸡-琵琶腿","麦麦脆汁鸡-琵琶腿",
+  "麦麦脆汁鸡-带骨里脊","蒜了吧黄油风味薄皮脆汁鸡-琵琶腿","蒜了吧黄油风味薄皮脆汁鸡-带骨里脊",
+  "香芋派","菠萝派","大杯玉米杯","小杯玉米杯"]);
+
+function classify(name){
+  name = name.trim();
+  if (DESSERT.has(name)) return "dessert";
+  if (BREAKFAST_MAIN.has(name)) return "breakfast_main";
+  if (BREAKFAST_SIDE.has(name)) return "breakfast_side";
+  if (BURGER.has(name)) return "burger";
+  if (SIDE.has(name)) return "side";
+  return "drink";
+}
+
+/* ── 常量 ── */
+const SODIUM_CAP = 2000;
+const ACTIVITY = {
+  sedentary:[1.2,"久坐（几乎不运动）"], light:[1.375,"轻度（每周 1-3 次运动）"],
+  moderate:[1.55,"中度（每周 3-5 次运动）"], active:[1.725,"高度（每周 6-7 次运动）"],
+  athlete:[1.9,"极高强度"]
+};
+const GOALS = {
+  cut:{d:0.18, pl:2.2, pb:1.8, desc:"减脂（保肌优先）",
+       note:"缺口较大，减脂明确但对肌肉有压力"},
+  recomp:{d:0.08, pl:2.4, pb:2.0, desc:"增肌减脂（体成分重组）",
+       note:"小缺口 + 最高蛋白，目标是不掉肌肉地减脂"},
+  gain:{d:-0.08, pl:2.0, pb:1.8, desc:"增肌（小盈余）",
+       note:"热量盈余，蛋白可略低因为能量充足"}
+};
+const MEAL_SLOTS = {
+  breakfast:{label:"早餐", main:["breakfast_main","breakfast_side"],
+             side:["breakfast_side"], drink:["drink"], w:0.25},
+  lunch:{label:"午餐", main:["burger"], side:["side"], drink:["drink"], w:0.40},
+  dinner:{label:"晚餐", main:["burger"], side:["side"], drink:["drink"], w:0.35}
+};
+const ABS_MALE = [
+  [8,"竞技级线条","腹部分离深刻，接近比赛状态。长期维持可能影响激素水平。"],
+  [10,"八块清晰","腹肌分块完全可见，线条锐利。这是可持续的下限附近。"],
+  [12,"六块清晰","六块腹肌完全可见，手臂血管明显。多数人追求的理想区间。"],
+  [15,"上腹可见","上腹肌清晰，下腹仍被少量皮脂覆盖——下腹通常最后显现。"],
+  [20,"上腹微现","良好光线下上腹轮廓开始显现，腰部明显收紧。"],
+  [25,"极微弱轮廓","仅在良好光线与角度下能看到极其微弱的轮廓。"],
+  [999,"被脂肪覆盖","皮下脂肪完全盖住腹肌，此时练腹再多也看不到。"]
+];
+
+/* ── 计算：与 Python 引擎同源 ── */
+function calcBmr(w,h,a,sex){
+  const base = 10*w + 6.25*h - 5*a;
+  return sex === "male" ? base + 5 : base - 161;
+}
+
+function buildTarget(p){
+  const measured = p.bmr;
+  const bmr = measured ? measured : calcBmr(p.weight,p.height,p.age,p.sex);
+  const bmrSrc = measured ? "用户实测" : "Mifflin-St Jeor 公式估算";
+  const [factor, factorDesc] = ACTIVITY[p.activity];
+  const tdee = bmr * factor;
+  const g = GOALS[p.goal];
+  let dailyDeficit = tdee - tdee*(1-g.d);
+  const warnings = [];
+  const maxDeficit = tdee*0.25;
+  if (dailyDeficit > maxDeficit){
+    warnings.push(`目标缺口 ${dailyDeficit.toFixed(0)} kcal/天 超过安全上限 `
+      + `${maxDeficit.toFixed(0)} kcal/天（TDEE 的 25%），已收窄至上限。`);
+    dailyDeficit = maxDeficit;
+  }
+  let dailyKcal = tdee - dailyDeficit;
+  const floorKcal = bmr*1.1;
+  if (dailyKcal < floorKcal){
+    warnings.push(`目标摄入 ${dailyKcal.toFixed(0)} kcal 低于基础代谢护栏 `
+      + `${floorKcal.toFixed(0)} kcal，已上调至护栏值（减脂速度相应放缓）。`);
+    dailyKcal = floorKcal;
+  }
+  dailyDeficit = tdee - dailyKcal;
+
+  let proteinTarget, proteinSource, lbm = null;
+  if (p.bodyfat){
+    lbm = p.weight*(1-p.bodyfat/100);
+    proteinTarget = lbm*g.pl;
+    proteinSource = `瘦体重 ${lbm.toFixed(1)} kg × ${g.pl} g/kg LBM`;
+  } else {
+    proteinTarget = p.weight*g.pb;
+    proteinSource = `体重 ${p.weight.toFixed(1)} kg × ${g.pb}（未填体脂率）`;
+  }
+  const fatMin = p.weight*0.6;
+  const carbTarget = Math.max(0,(dailyKcal - proteinTarget*4 - fatMin*9)/4);
+  return {bmr,bmrSrc,factor,factorDesc,tdee,dailyKcal,dailyDeficit,proteinTarget,
+          proteinSource,fatMin,carbTarget,lbm,warnings,goalDesc:g.desc,goalNote:g.note};
+}
+
+function totals(combo){
+  return combo.reduce((a,x)=>({
+    kcal:a.kcal+x.kcal, protein:a.protein+x.protein, fat:a.fat+x.fat,
+    carb:a.carb+x.carb, sodium:a.sodium+x.sodium
+  }),{kcal:0,protein:0,fat:0,carb:0,sodium:0});
+}
+const sumKcal = combo => combo.reduce((a,x)=>a+x.kcal,0);
+
+function makeScore(sw){
+  return function(combo, kt, pt){
+    const t = totals(combo);
+    const kcalGap = Math.abs(t.kcal-kt)/Math.max(kt,1);
+    const proteinGap = Math.max(0,pt-t.protein)/Math.max(pt,1);
+    const sodiumPenalty = Math.max(0,t.sodium-650)/650;
+    const densityBonus = -0.6*(t.protein/Math.max(t.kcal,1)*100)/10;
+    const overshoot = Math.max(0,kcalGap-0.15);
+    return 100*overshoot + 10*kcalGap + 3*proteinGap
+         + sw*sodiumPenalty + densityBonus;
+  };
+}
+
+function pickMeal(items, mainK, sideK, drinkK, kt, pt, forbid, scoreFn, hardCap){
+  const pool = kinds => items.filter(i =>
+    kinds.includes(classify(i.name)) && !forbid.has(i.name) && i.kcal > 0);
+  const mains = pool(mainK);
+  const sidePool = pool(sideK);
+  const sides = [null, ...sidePool.map(s=>[s])];
+  for (let i=0;i<sidePool.length;i++)
+    for (let j=i+1;j<sidePool.length;j++) sides.push([sidePool[i],sidePool[j]]);
+  const drinks = [null, ...pool(drinkK).map(d=>[d])];
+  let best = null;
+  for (const m of mains){
+    for (const s of sides){
+      if (s && s.some(x=>classify(x.name)===classify(m.name))) continue;
+      if (s && s.length===2 && classify(s[0].name)===classify(s[1].name)) continue;
+      for (const d of drinks){
+        if (d && [m,...(s||[])].some(x=>classify(x.name)===classify(d[0].name))) continue;
+        const combo = [m,...(s||[]),...(d||[])];
+        if (hardCap !== null && hardCap !== undefined && sumKcal(combo) > hardCap) continue;
+        const sc = scoreFn(combo, kt, pt);
+        if (!best || sc < best.sc) best = {sc,combo};
+      }
+    }
+  }
+  return best;
+}
+
+function minimalCombo(items, slot, forbid){
+  const pool = items.filter(i => slot.main.includes(classify(i.name))
+    && !forbid.has(i.name) && i.kcal > 0);
+  if (!pool.length) return [];
+  return [pool.reduce((a,b)=>a.kcal<=b.kcal?a:b)];
+}
+
+function buildSlotPlan(items, target, solveKeys, known, sw){
+  const scoreFn = makeScore(sw);
+  const knownKcal = known.reduce((a,m)=>a+(m.kcal||0),0);
+  const knownProtein = known.reduce((a,m)=>a+(m.protein||0),0);
+  const knownSodium = known.reduce((a,m)=>a+(m.sodium||0),0);
+  const leftKcal = target.dailyKcal - knownKcal;
+  const leftProtein = target.proteinTarget - knownProtein;
+
+  const std = {};
+  solveKeys.forEach(k => std[k] = target.dailyKcal*MEAL_SLOTS[k].w);
+  const totalStd = Object.values(std).reduce((a,b)=>a+b,0);
+  let scale;
+  if (totalStd <= 0) scale = 0;
+  else if (leftKcal >= totalStd) scale = 1;
+  else scale = Math.max(0,leftKcal/totalStd);
+
+  const plan = [], used = new Set(), notes = {};
+  for (const k of solveKeys){
+    const slot = MEAL_SLOTS[k];
+    const kt = std[k]*scale, pt = target.proteinTarget*slot.w*scale;
+    if (kt <= 1){ plan.push({label:slot.label,combo:[],kt,pt}); continue; }
+    const res = pickMeal(items, slot.main, slot.side, slot.drink, kt, pt, used, scoreFn, kt*1.15);
+    let combo;
+    if (res) combo = res.combo;
+    else {
+      combo = minimalCombo(items, slot, used);
+      if (combo.length){
+        const actual = sumKcal(combo);
+        notes[slot.label] = `额度 ${kt.toFixed(0)} kcal 内无可行组合；已给最低热量兜底 `
+          + `${actual.toFixed(0)} kcal（超出 ${(actual-kt).toFixed(0)} kcal）`;
+      } else notes[slot.label] = "该餐次内无可选餐品";
+    }
+    combo.forEach(i=>used.add(i.name));
+    plan.push({label:slot.label,combo,kt,pt});
+  }
+  return {plan, info:{knownKcal,knownProtein,knownSodium,leftKcal,leftProtein,scale,notes}};
+}
+
+function bfNavy(sex,h,waist,neck,hip){
+  let girth, k;
+  if (sex === "male"){
+    if (!waist || !neck) return null;
+    girth = waist-neck; k = [1.0324,0.19077,0.15456];
+  } else {
+    if (!waist || !neck || !hip) return null;
+    girth = waist+hip-neck; k = [1.29579,0.35004,0.22100];
+  }
+  if (girth <= 0) return null;
+  const denom = k[0] - k[1]*Math.log10(girth) + k[2]*Math.log10(h);
+  if (denom <= 0) return null;
+  const bf = 495/denom - 450;
+  return (bf >= 2 && bf <= 65) ? bf : null;
+}
+
+function absVisibility(sex,bf){
+  const b = sex === "female" ? bf-8 : bf;
+  for (const row of ABS_MALE) if (b < row[0]) return {title:row[1],desc:row[2]};
+  const last = ABS_MALE[ABS_MALE.length-1];
+  return {title:last[1],desc:last[2]};
+}
+
+function waterIndex(na,w){
+  const excess = Math.max(0,na-SODIUM_CAP);
+  const liters = excess/1000*0.3;
+  const pct = w ? liters/w*100 : 0;
+  let grade, note;
+  if (pct < 0.2){ grade="清爽"; note="钠在安全线内，腹肌不会被水盖住。"; }
+  else if (pct < 0.4){ grade="略微发糊"; note="有轻微水潴留，晨起可能比晚间清晰。"; }
+  else if (pct < 0.7){ grade="明显发糊";
+    note="皮下水分把腹肌线条泡软了——即使体脂达标，看起来也会「平」。"; }
+  else { grade="完全盖住";
+    note="水潴留严重，腹肌在视觉上基本被抹平。此时照镜子会严重低估你的真实进度。"; }
+  return {liters,grade,note,pct};
+}
+/*__ENGINE_END__*/
+
+/* ══════════════════════════════════════════════════════════
+   UI
+   ══════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const state = {
+  sex:"male", weight:78, height:175, age:40, activity:"light",
+  bodyfat:22, bmr:1600, goal:"recomp",
+  solve:new Set(["breakfast","lunch","dinner"]),
+  known:{}
+};
+
+function bindSeg(id, key){
+  $(id).addEventListener("click", e=>{
+    const btn = e.target.closest("button"); if(!btn) return;
+    [...$(id).children].forEach(b=>b.classList.remove("on"));
+    btn.classList.add("on");
+    state[key] = btn.dataset.v;
+    render();
+  });
+}
+bindSeg("sex","sex"); bindSeg("activity","activity"); bindSeg("goal","goal");
+
+["weight","height","age","bodyfat"].forEach(id=>{
+  $(id).addEventListener("input", ()=>{
+    state[id] = parseFloat($(id).value);
+    $(id+"_v").textContent = $(id).value;
+    render();
+  });
+});
+$("bmr").addEventListener("input", ()=>{
+  const v = parseFloat($("bmr").value);
+  state.bmr = (isNaN(v) || v <= 0) ? null : v;
+  render();
+});
+$("meals").addEventListener("click", e=>{
+  const btn = e.target.closest("button"); if(!btn) return;
+  const k = btn.dataset.v;
+  if (state.solve.has(k)) state.solve.delete(k);
+  else state.solve.add(k);
+  if (!state.solve.size) state.solve.add(k);   // 至少留一个
+  btn.classList.toggle("on");
+  render();
+});
+$("run").addEventListener("click", render);
+
+function renderKnownInputs(){
+  const box = $("known");
+  const others = ["breakfast","lunch","dinner"].filter(k=>!state.solve.has(k));
+  if (!others.length){ box.innerHTML = ""; return; }
+  box.innerHTML = "<div style='font-size:12px;color:#5c6570;margin-bottom:7px'>"
+    + "其余餐次（作为额度约束）</div>"
+    + others.map(k=>{
+      const d = state.known[k] || {kcal:0,protein:0,sodium:0};
+      return `<div class="krow"><span>${MEAL_SLOTS[k].label}</span>
+        <input type="number" data-k="${k}" data-f="kcal" placeholder="热量 kcal" value="${d.kcal||""}">
+        <input type="number" data-k="${k}" data-f="protein" placeholder="蛋白 g" value="${d.protein||""}">
+        <input type="number" data-k="${k}" data-f="sodium" placeholder="钠 mg" value="${d.sodium||""}">
+      </div>`;
+    }).join("");
+  box.querySelectorAll("input").forEach(inp=>{
+    inp.addEventListener("input", ()=>{
+      const k = inp.dataset.k, f = inp.dataset.f;
+      state.known[k] = state.known[k] || {kcal:0,protein:0,sodium:0};
+      const v = parseFloat(inp.value);
+      state.known[k][f] = (isNaN(v) || v < 0) ? 0 : v;
+      render();
+    });
+  });
+}
+
+function chip(ok, okTxt, badTxt){ return `<span class="chip ${ok?'ok':'bad'}">${ok?okTxt:badTxt}</span>`; }
+
+function render(){
+  renderKnownInputs();
+
+  const p = {sex:state.sex, weight:state.weight, height:state.height, age:state.age,
+             activity:state.activity, bodyfat:state.bodyfat||null,
+             bmr:state.bmr, goal:state.goal};
+  const target = buildTarget(p);
+
+  /* ── 1. 目标 ── */
+  const tEl = $("target");
+  let tHtml = `
+    <div class="big">${target.dailyKcal.toFixed(0)} <small>kcal / 天 · 摄入目标</small></div>
+    <div style="font-size:13px;color:var(--dim);margin:6px 0 14px">
+      ${target.goalDesc} · ${target.goalNote}</div>
+    <div class="kv"><span>基础代谢 BMR</span><b>${target.bmr.toFixed(0)} kcal
+      <i style="font-style:normal;color:var(--dim);font-size:12px">（${target.bmrSrc}）</i></b></div>
+    <div class="kv"><span>每日消耗 TDEE</span><b>${target.tdee.toFixed(0)} kcal
+      <i style="font-style:normal;color:var(--dim);font-size:12px">（${target.factorDesc}）</i></b></div>`;
+
+  if (target.dailyDeficit >= 0){
+    tHtml += `<div class="kv"><span>每日缺口</span><b>${target.dailyDeficit.toFixed(0)} kcal
+      　→ 每周减 ${(target.dailyDeficit*7/7700).toFixed(2)} kg</b></div>`;
+  } else {
+    tHtml += `<div class="kv"><span>每日盈余</span><b>${(-target.dailyDeficit).toFixed(0)} kcal
+      　→ 每周增 ${((-target.dailyDeficit)*7/7700).toFixed(2)} kg</b></div>`;
+  }
+  tHtml += `
+    <div class="kv"><span>蛋白目标</span><b>${target.proteinTarget.toFixed(0)} g</b></div>
+    <div class="kv"><span>脂肪下限 / 碳水目标</span><b>${target.fatMin.toFixed(0)} g /
+      ${target.carbTarget.toFixed(0)} g</b></div>
+    <div class="kv"><span>摄入占 BMR 比例</span><b>${(target.dailyKcal/target.bmr).toFixed(2)} ×</b></div>`;
+
+  if (target.bmr < target.dailyKcal - 50){
+    const gapBmr = target.tdee - target.bmr;
+    const pctBmr = gapBmr/target.tdee*100;
+    const flag = pctBmr > 25 ? "已超 25% 安全上限 → 会掉肌肉"
+               : pctBmr > 20 ? "逼近上限，保肌吃紧" : "缺口偏小，减得慢";
+    tHtml += `<div class="warnbox"><b>为什么不锚定 BMR</b><br>
+      若按「摄入不超过基础代谢」吃 ${target.bmr.toFixed(0)} kcal：
+      缺口 ${gapBmr.toFixed(0)}（${pctBmr.toFixed(1)}%）—— ${flag}。<br>
+      本工具按 TDEE 算：${target.dailyKcal.toFixed(0)} kcal，
+      缺口 ${target.dailyDeficit.toFixed(0)}（${(target.dailyDeficit/target.tdee*100).toFixed(1)}%）。
+      ${state.goal==="gain"?"增肌更要吃到 BMR 的 1.3~1.7 倍。":""}</div>`;
+  }
+  target.warnings.forEach(w=>{ tHtml += `<div class="warnbox">⚠️ ${w}</div>`; });
+  tEl.innerHTML = tHtml;
+
+  /* ── 2. 餐次方案 ── */
+  const solveKeys = ["breakfast","lunch","dinner"].filter(k=>state.solve.has(k));
+  const knownList = ["breakfast","lunch","dinner"].filter(k=>!state.solve.has(k))
+    .map(k=>({label:MEAL_SLOTS[k].label, ...(state.known[k]||{kcal:0,protein:0,sodium:0})}));
+  const {plan,info} = buildSlotPlan(ITEMS, target, solveKeys, knownList, 0.5);
+  const pEl = $("plan");
+  let pHtml = "";
+
+  if (knownList.length){
+    pHtml += `<div style="font-size:12.5px;color:var(--dim);margin-bottom:10px">
+      <b style="color:var(--txt)">已知餐次</b>（不配麦当劳，仅占用额度）：`
+      + knownList.map(m=>`${m.label} ${(m.kcal||0).toFixed(0)}kcal`).join(" · ")
+      + `　合计 ${info.knownKcal.toFixed(0)} kcal｜蛋白 ${info.knownProtein.toFixed(0)} g</div>`;
+  }
+  pHtml += `<div style="font-size:13px;margin-bottom:12px">
+    剩余额度 <b style="color:var(--gold)">${info.leftKcal.toFixed(0)} kcal</b>
+    ｜蛋白 <b style="color:var(--gold)">${info.leftProtein.toFixed(0)} g</b>
+    ${info.scale < 0.999 ? `<span class="chip warn">已按 ${(info.scale*100).toFixed(0)}% 压缩</span>` : ""}
+    ${info.leftKcal < 0 ? `<span class="chip bad">已超目标 ${(-info.leftKcal).toFixed(0)} kcal</span>` : ""}
+  </div>`;
+
+  plan.forEach(pm=>{
+    if (!pm.combo.length){
+      pHtml += `<div class="mealblk"><div class="mh"><b>${pm.label}</b>
+        <span>额度不足（目标 ${pm.kt.toFixed(0)} kcal）</span></div></div>`;
+      return;
+    }
+    const t = totals(pm.combo);
+    pHtml += `<div class="mealblk"><div class="mh">
+        <b>${pm.label}</b><span style="color:var(--dim)">目标 ${pm.kt.toFixed(0)} kcal /
+        蛋白 ${pm.pt.toFixed(0)} g</span></div>`
+      + pm.combo.map(i=>`<div class="item"><span>${i.name}</span>
+          <i>${i.kcal.toFixed(0)} kcal · 蛋白 ${i.protein.toFixed(0)}g · 钠 ${i.sodium.toFixed(0)}mg</i>
+        </div>`).join("")
+      + `<div class="sum">小计 ${t.kcal.toFixed(0)} kcal ｜蛋白 ${t.protein.toFixed(0)} g
+          ｜脂肪 ${t.fat.toFixed(0)} g ｜碳水 ${t.carb.toFixed(0)} g ｜钠 ${t.sodium.toFixed(0)} mg</div>`;
+    if (info.notes[pm.label])
+      pHtml += `<div class="warnbox">⚠️ ${info.notes[pm.label]}</div>`;
+    pHtml += `</div>`;
+  });
+
+  const pt = plan.reduce((a,pm)=>{
+    const t = totals(pm.combo);
+    return {kcal:a.kcal+t.kcal,protein:a.protein+t.protein,sodium:a.sodium+t.sodium};
+  },{kcal:0,protein:0,sodium:0});
+  const totKcal = pt.kcal + info.knownKcal;
+  const totProt = pt.protein + info.knownProtein;
+  const totNa = pt.sodium + info.knownSodium;
+  const dk = target.dailyKcal - totKcal, dp = target.proteinTarget - totProt;
+  pHtml += `<div class="mealblk" style="border-color:#3a424e">
+    <div class="mh"><b>全天合计</b><span style="color:var(--dim)">已知 + 麦当劳</span></div>
+    <div class="item"><span>热量</span><i>${totKcal.toFixed(0)} / ${target.dailyKcal.toFixed(0)} kcal
+      　${dk>=0?"剩余 "+dk.toFixed(0):"超标 "+(-dk).toFixed(0)}</i></div>
+    <div class="item"><span>蛋白</span><i>${totProt.toFixed(0)} / ${target.proteinTarget.toFixed(0)} g
+      　${dp>0?"缺口 "+dp.toFixed(0):"超出 "+(-dp).toFixed(0)}</i></div>
+    <div class="item"><span>钠</span><i>${totNa.toFixed(0)} / ${SODIUM_CAP} mg
+      　${totNa<=SODIUM_CAP?"✅ 在限内":"❌ 超 "+(totNa-SODIUM_CAP).toFixed(0)+" mg"}</i></div>
+  </div>`;
+  pEl.innerHTML = pHtml;
+
+  /* ── 3. 冲突可视化 ── */
+  const full = solveKeys.length === 3 && !knownList.length;
+  const pProt = buildSlotPlan(ITEMS,target,solveKeys,knownList,0.5);
+  const pSod  = buildSlotPlan(ITEMS,target,solveKeys,knownList,4.0);
+  const tProt = totals(pProt.plan.flatMap(x=>x.combo));
+  const tSod  = totals(pSod.plan.flatMap(x=>x.combo));
+  const maxProt = Math.max(target.proteinTarget, tProt.protein, tSod.protein, 1);
+  const maxNa = Math.max(SODIUM_CAP, tProt.sodium, tSod.sodium, 1);
+  const cEl = $("conflict");
+  function bar(label, val, max, unit, color, cap){
+    const w = Math.min(100, val/max*100);
+    return `<div class="brow"><div class="bl"><span>${label}</span>
+      <b style="color:${color}">${val.toFixed(0)} ${unit}</b></div>
+      <div class="btrack"><div class="bfill" style="width:${w}%;background:${color}"></div></div>
+      ${cap!==undefined?`<div style="font-size:11.5px;color:#6b7480;margin-top:4px">
+        上限参考 ${cap} ${unit}</div>`:""}
+    </div>`;
+  }
+  let cHtml = `<div style="font-size:13px;margin-bottom:14px;color:var(--dim)">
+    同一个引擎，只改一个权重，结果就分岔 ——</div>
+    <div style="font-weight:700;font-size:13.5px;margin-bottom:9px">蛋白优先方案</div>
+    <div class="bars">`
+    + bar("蛋白质", tProt.protein, maxProt, "g", "#4ade80", target.proteinTarget.toFixed(0))
+    + bar("钠", tProt.sodium, maxNa, "mg", tProt.sodium>SODIUM_CAP?"#DA291C":"#4ade80", SODIUM_CAP)
+    + `</div>
+    <div style="font-weight:700;font-size:13.5px;margin:18px 0 9px">控钠优先方案</div>
+    <div class="bars">`
+    + bar("蛋白质", tSod.protein, maxProt, "g", tSod.protein<target.proteinTarget*0.95?"#fb923c":"#4ade80", target.proteinTarget.toFixed(0))
+    + bar("钠", tSod.sodium, maxNa, "mg", "#4ade80", SODIUM_CAP)
+    + `</div>`;
+
+  if (full && tProt.sodium > SODIUM_CAP && tSod.protein < target.proteinTarget*0.95){
+    cHtml += `<div class="warnbox"><b>这不是算法没调好，是餐单的结构性事实。</b><br>
+      在纯麦当劳餐单上，「热量达标 + 蛋白达标 + 钠达标」三者不可兼得：<br>
+      · 要蛋白 ${target.proteinTarget.toFixed(0)} g，钠会到 ${tProt.sodium.toFixed(0)} mg<br>
+      · 要控钠 ${SODIUM_CAP} mg 以内，蛋白只有 ${tSod.protein.toFixed(0)} g<br>
+      建议选定一侧作主线，另一侧用非麦当劳食物补齐（无糖希腊酸奶、水煮鸡胸、蛋白粉）。</div>`;
+  } else if (!full){
+    cHtml += `<div class="notebox">当前只配 ${solveKeys.length} 个餐次，其余餐次由非麦当劳补足，
+      故此处只对比麦当劳这部分的营养，不作「不可兼得」判定。</div>`;
+  }
+  cEl.innerHTML = cHtml;
+
+  /* ── 4. 体成分 ── */
+  const aEl = $("abs");
+  if (!p.bodyfat){
+    aEl.innerHTML = `<div class="notebox">未填体脂率，无法测算腹肌可见度。
+      把左侧「体脂率」滑到你的实际值即可（也可用腰围/颈围由海军法估算，见 README）。</div>`;
+  } else {
+    const bf = p.bodyfat;
+    const fatMass = p.weight*bf/100;
+    const lbm = p.weight - fatMass;
+    const goalBf = state.sex === "male" ? 12 : 20;
+    const cur = absVisibility(state.sex, bf);
+    const goal = absVisibility(state.sex, goalBf);
+    const targetWeight = lbm/(1-goalBf/100);
+    const fatToLose = fatMass - targetWeight*goalBf/100;
+    const wf = Math.max(0, bf-goalBf);
+    let weeks = 0;
+    if (fatToLose > 0){
+      const weekly = p.weight*0.005;
+      const realLoss = fatToLose/(1-0.05);
+      weeks = realLoss/weekly;
+    }
+    const w = waterIndex(totNa, p.weight);
+    aEl.innerHTML = `
+      <div class="absgrid">
+        <div class="absbox"><div class="lab">当前体脂率</div>
+          <div class="val" style="color:var(--gold)">${bf.toFixed(1)}<small style="font-size:13px">%</small></div>
+          <div class="dsc">脂肪 ${fatMass.toFixed(1)} kg<br>瘦体重 ${lbm.toFixed(1)} kg</div></div>
+        <div class="absbox"><div class="lab">腹肌可见度</div>
+          <div class="val" style="color:${bf<=15?'#4ade80':'#fb923c'};font-size:17px">${cur.title}</div>
+          <div class="dsc">${cur.desc}</div></div>
+      </div>
+      ${bf > goalBf ? `
+      <div class="kv" style="margin-top:14px"><span>目标体脂 ${goalBf}%
+        （${goal.title}）</span><b>需减脂肪 ${fatToLose.toFixed(1)} kg</b></div>
+      <div class="kv"><span>对应目标体重</span><b>${targetWeight.toFixed(1)} kg</b></div>
+      <div class="kv"><span>安全速率与周期</span><b>≤ ${(p.weight*0.005).toFixed(2)} kg 脂肪/周
+        　约 ${weeks.toFixed(0)} 周（${(weeks/4.3).toFixed(1)} 个月）</b></div>
+      <div class="notebox">这是「以月计」的事，不是「以周计」——
+        且周期按 <b>有力量训练</b> 的口径估算（纯节食会有约 25% 的减重来自肌肉）。</div>`
+      : `<div class="notebox" style="margin-top:14px">你已在腹肌可见区间，
+        接下来的重点是「练厚」而不是「再减」。</div>`}
+      <div class="kv" style="margin-top:16px"><span>今日钠摄入（全天合计）</span>
+        <b>${totNa.toFixed(0)} mg</b></div>
+      <div class="kv"><span>钠致滞留水</span><b>约 ${w.liters.toFixed(2)} L
+        （占体重 ${w.pct.toFixed(2)}%）</b></div>
+      <div class="kv"><span>腹肌清晰度</span>
+        <b style="color:${w.grade==="清爽"?"#4ade80":w.grade==="略微发糊"?"#FFC72C":"#DA291C"}">
+        【${w.grade}】</b></div>
+      <div style="font-size:13px;color:var(--dim);margin-top:8px">${w.note}</div>
+      <div class="warnbox"><b>腹肌的块数与形状由基因决定</b>（腱划数量与位置）——
+        有人天生六块、有人非对称四块或八块，这一点练不出来也吃不出来。
+        本工具做的是让已有的腹肌「看得见」：把覆盖它的脂肪减掉、把盖住它的水分排掉。</div>`;
+  }
+}
+
+render();
+</script>
+</body>
+</html>
