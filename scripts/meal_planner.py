@@ -480,6 +480,26 @@ def conflict_diagnosis(plan, target):
     return t, issues
 
 
+def sodium_grade(total_na):
+    """钠的分档说明（与 demo 页口径一致）。
+
+    2000 mg 是 WHO 的**每日建议值**，不是硬性红线 ——
+    超 38 mg 和超 1600 mg 是两回事，不该都标成同一个"❌ 超上限"，
+    那只会制造无谓焦虑（钠的参考值看的是长期均值，不是某一天的账）。
+
+    分档：≤1.0 在建议值内 ｜ ≤1.2 略高 ｜ >1.2 明显偏高。
+    """
+    if not total_na:
+        return ""
+    over = total_na - SODIUM_DAILY_CAP
+    ratio = total_na / SODIUM_DAILY_CAP
+    if ratio <= 1:
+        return "✅ 在 WHO 建议值内"
+    if ratio <= 1.2:
+        return f"⚠️ 略高于建议值 {over:.0f} mg"
+    return f"⚠️ 比建议值高 {over:.0f} mg"
+
+
 def fmt(plan, target, args, sodium_weight, label, coupon_ctx=None):
     out = []
     out.append("=" * 62)
@@ -665,11 +685,8 @@ def fmt_slot(plan, target, args, label, info, known_meals, coupon_ctx=None):
     out.append(f"  蛋白   {tot_prot:>7.0f} / {target['protein_target']:.0f} g"
                f"     " + (f"缺口 {dp:.0f}" if dp > 0 else f"超出 {abs(dp):.0f}"))
     if tot_na:
-        if tot_na <= SODIUM_DAILY_CAP:
-            na_note = "✅ 在限内"
-        else:
-            na_note = f"❌ 超上限 {tot_na - SODIUM_DAILY_CAP:.0f} mg"
-        out.append(f"  钠     {tot_na:>7.0f} / {SODIUM_DAILY_CAP} mg    {na_note}")
+        out.append(f"  钠     {tot_na:>7.0f} / {SODIUM_DAILY_CAP} mg    "
+                   + sodium_grade(tot_na))
     out.append("=" * W)
 
     if coupon_ctx is not None:

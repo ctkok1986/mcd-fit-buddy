@@ -120,7 +120,16 @@ input:focus{outline:none;border-color:var(--red)}
    三重提示：标题标签变橙 + 结果区变淡 + 按钮脉冲。 */
 body.dirty .ltxt{color:var(--orange)}
 body.dirty .livedot{background:var(--orange)}
-body.dirty .stack{opacity:.55;transition:opacity .25s}
+body.dirty .stack > .card{opacity:.55;transition:opacity .25s}
+/* 改了参数后结果区不会自己重算（按钮驱动），只变灰不够醒目 ——
+   用户会以为"改了没用"。所以再加一条明确的横幅。
+   注意放在 .stack 内但改 .card 的 opacity，否则横幅自己也会被变灰。 */
+body.dirty .stack::before{
+  content:"参数已改动 —— 下方还是旧结果，点「生成方案」重新计算";
+  display:block;padding:11px 16px;border-radius:9px;text-align:center;
+  background:rgba(255,199,44,.13);border:1px solid rgba(255,199,44,.45);
+  color:var(--gold);font-size:13.5px;font-weight:600;
+}
 body.dirty #run{animation:btnpulse 1.5s ease-in-out infinite}
 @keyframes btnpulse{
   0%,100%{box-shadow:0 0 0 0 rgba(255,199,44,.55)}
@@ -215,8 +224,8 @@ footer b{color:var(--txt)}
     <span class="tag">2026 麦当劳程序员创意开发大赛 · 参赛作品</span>
     <h1>在麦当劳<br><span class="hl">吃出腹肌</span></h1>
     <p class="sub">
-      不是少吃，而是<strong>增肌减脂</strong> —— 不掉肌肉地减脂，能增肌更好。
-      填上体脂率和目标，它从官方营养数据里排出三餐：<strong>补得上就给方案，补不上就照实说</strong>。
+      谁说减脂就不能吃麦当劳？<br>
+      填上体脂率和目标，让它帮你算算：这一顿到底该怎么吃。
     </p>
     <div class="stats">
       <div class="stat"><b>__ITEM_COUNT__</b><span>项官方营养数据</span></div>
@@ -277,7 +286,7 @@ footer b{color:var(--txt)}
     <div class="field">
       <label>基础代谢 BMR（可选，实测值）
         <span style="color:#5c6570;font-size:11px">留空用公式</span></label>
-      <input type="number" id="bmr" placeholder="留空则由公式估算" value="1600">
+      <input type="number" id="bmr" placeholder="留空则由公式估算">
     </div>
 
     <div class="field">
@@ -799,7 +808,7 @@ function estimateMeal(text){
 const $ = id => document.getElementById(id);
 const state = {
   sex:"male", weight:78, height:175, age:40, activity:"light",
-  bodyfat:22, bmr:1600, goal:"recomp",
+  bodyfat:22, bmr:null, goal:"recomp",
   solve:new Set(["breakfast","lunch","dinner"]),
   known:{}
 };
@@ -1132,6 +1141,26 @@ function render(){
   renderResults();
 }
 
+/* ── 严重度分档：不要「超一分就标红」的二元判定 ──
+   钠 2000 mg 是 WHO 的**每日建议值**，不是硬性红线。
+   超 38 mg（1.9%）和超 1600 mg 是两回事，标成同一个红色 ❌ 只会制造无谓焦虑。
+   反过来，蛋白缺 36% 才是实质问题，不该比钠更不显眼。
+   所以两边都用同一套分档，让「严重程度」和「视觉重量」对齐。 */
+function sodiumGrade(na){
+  const r = na / SODIUM_CAP, over = na - SODIUM_CAP;
+  if (r <= 1)   return {c:"var(--green)",  lv:0, txt:"在 WHO 建议值内"};
+  if (r <= 1.2) return {c:"var(--orange)", lv:1,
+                        txt:`略高于建议值 ${over.toFixed(0)} mg`};
+  return              {c:"var(--red)",    lv:2,
+                        txt:`比建议值高 ${over.toFixed(0)} mg`};
+}
+function proteinGrade(p, tgt){
+  const r = p / tgt, gap = tgt - p;
+  if (r >= 1)   return {c:"var(--green)",  lv:0, txt:`已超出 ${(-gap).toFixed(0)} g`};
+  if (r >= 0.8) return {c:"var(--orange)", lv:1, txt:`缺口 ${gap.toFixed(0)} g`};
+  return              {c:"var(--red)",    lv:2, txt:`缺口 ${gap.toFixed(0)} g`};
+}
+
 function renderResults(){
   const p = {sex:state.sex, weight:state.weight, height:state.height, age:state.age,
              activity:state.activity, bodyfat:state.bodyfat||null,
@@ -1227,16 +1256,23 @@ function renderResults(){
   const totKcal = pt.kcal + info.knownKcal;
   const totProt = pt.protein + info.knownProtein;
   const totNa = pt.sodium + info.knownSodium;
-  const dk = target.dailyKcal - totKcal, dp = target.proteinTarget - totProt;
+  const dk = target.dailyKcal - totKcal;
+  const prG = proteinGrade(totProt, target.proteinTarget);
+  const naG = sodiumGrade(totNa);
   pHtml += `<div class="mealblk" style="border-color:#3a424e">
     <div class="mh"><b>全天合计</b><span style="color:var(--dim)">已知 + 麦当劳</span></div>
     <div class="item"><span>热量</span><i>${totKcal.toFixed(0)} / ${target.dailyKcal.toFixed(0)} kcal
       　${dk>=0?"剩余 "+dk.toFixed(0):"超标 "+(-dk).toFixed(0)}</i></div>
     <div class="item"><span>蛋白</span><i>${totProt.toFixed(0)} / ${target.proteinTarget.toFixed(0)} g
-      　${dp>0?"缺口 "+dp.toFixed(0):"超出 "+(-dp).toFixed(0)}</i></div>
+      　<b style="color:${prG.c}">${prG.txt}</b></i></div>
     <div class="item"><span>钠</span><i>${totNa.toFixed(0)} / ${SODIUM_CAP} mg
-      　${totNa<=SODIUM_CAP?"✅ 在限内":"❌ 超 "+(totNa-SODIUM_CAP).toFixed(0)+" mg"}</i></div>
-  </div>`;
+      　<b style="color:${naG.c}">${naG.txt}</b></i></div>
+  </div>
+  ${naG.lv>0?`<div class="notebox" style="margin-top:12px">
+    <b>${SODIUM_CAP} mg 是 WHO 的每日建议值，不是硬性红线。</b>
+    它用来指导长期摄入，参考的是「常年均值」，不是某一天的账 ——
+    单日略高不必紧张，真正要留意的是「是不是天天都高」。
+    想压低的话，优先看下面「控钠优先方案」。</div>`:""}`;
   pEl.innerHTML = pHtml;
 
   /* ── 3. 冲突可视化 ── */
@@ -1262,12 +1298,12 @@ function renderResults(){
     <div style="font-weight:700;font-size:13.5px;margin-bottom:9px">蛋白优先方案</div>
     <div class="bars">`
     + bar("蛋白质", tProt.protein, maxProt, "g", "#4ade80", target.proteinTarget.toFixed(0))
-    + bar("钠", tProt.sodium, maxNa, "mg", tProt.sodium>SODIUM_CAP?"#DA291C":"#4ade80", SODIUM_CAP)
+    + bar("钠", tProt.sodium, maxNa, "mg", sodiumGrade(tProt.sodium).c, SODIUM_CAP)
     + `</div>
     <div style="font-weight:700;font-size:13.5px;margin:18px 0 9px">控钠优先方案</div>
     <div class="bars">`
     + bar("蛋白质", tSod.protein, maxProt, "g", tSod.protein<target.proteinTarget*0.95?"#fb923c":"#4ade80", target.proteinTarget.toFixed(0))
-    + bar("钠", tSod.sodium, maxNa, "mg", "#4ade80", SODIUM_CAP)
+    + bar("钠", tSod.sodium, maxNa, "mg", sodiumGrade(tSod.sodium).c, SODIUM_CAP)
     + `</div>`;
 
   if (full && tProt.sodium > SODIUM_CAP && tSod.protein < target.proteinTarget*0.95){
