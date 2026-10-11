@@ -114,6 +114,18 @@ input:focus{outline:none;border-color:var(--red)}
 .btn:hover{filter:brightness(1.08)}
 .btn:active{transform:translateY(1px)}
 .btn.done{background:var(--green);color:#04210f}
+
+/* ── 「参数已改、结果还没更新」的状态 ──
+   按钮驱动下，必须让用户随时知道：现在看到的结果是不是最新的。
+   三重提示：标题标签变橙 + 结果区变淡 + 按钮脉冲。 */
+body.dirty .ltxt{color:var(--orange)}
+body.dirty .livedot{background:var(--orange)}
+body.dirty .stack{opacity:.55;transition:opacity .25s}
+body.dirty #run{animation:btnpulse 1.5s ease-in-out infinite}
+@keyframes btnpulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(255,199,44,.55)}
+  55%{box-shadow:0 0 0 9px rgba(255,199,44,0)}
+}
 /* 按钮贴面板底部：面板内部滚动时始终可见，不会被滚出视野 */
 .sidefoot{position:sticky;bottom:0;margin:8px -22px -22px;padding:10px 22px 22px;
   background:linear-gradient(to top,var(--card) 60%,rgba(23,27,34,0));
@@ -171,6 +183,29 @@ footer{border-top:1px solid var(--line);padding:34px 0 54px;margin-top:40px;
   font-size:13px;color:var(--dim)}
 footer b{color:var(--txt)}
 .fnote{font-size:12.5px;color:#6b7480;margin-top:14px;line-height:1.7}
+
+/* ── 参赛拉票：Star 入口 ──
+   工具页部署在 GitHub Pages 上，而 Star 按钮只存在于 github.com 的仓库页。
+   访客体验完却无处可点，转化就断在这里 —— 所以必须补一个入口。 */
+.star-cta{display:flex;align-items:center;justify-content:space-between;gap:18px;
+  flex-wrap:wrap;background:var(--card);border:1px solid rgba(255,199,44,.35);
+  border-radius:14px;padding:18px 22px;margin-bottom:24px}
+.star-cta .who b{display:block;font-size:16.5px;color:var(--txt);margin-bottom:3px}
+.star-cta .who span{font-size:13px;color:var(--dim)}
+.star-cta .go{flex:none;display:inline-flex;align-items:center;gap:8px;
+  background:var(--gold);color:#1a1400;font-weight:700;font-size:15px;
+  padding:11px 22px;border-radius:999px;white-space:nowrap}
+.star-cta .go:hover{text-decoration:none;filter:brightness(1.07)}
+.floatstar{position:fixed;right:22px;bottom:22px;z-index:60;
+  display:inline-flex;align-items:center;gap:9px;
+  background:var(--gold);color:#1a1400;font-weight:700;font-size:15px;
+  padding:13px 20px;border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.floatstar:hover{text-decoration:none;filter:brightness(1.07)}
+@media (max-width:640px){
+  .floatstar{right:14px;bottom:14px;padding:11px 16px;font-size:14px;gap:7px}
+  .star-cta{padding:16px 18px}
+  .star-cta .go{width:100%;justify-content:center}
+}
 </style>
 </head>
 <body>
@@ -198,7 +233,7 @@ footer b{color:var(--txt)}
   <!-- ── 左：参数 ── -->
   <div class="card side">
     <h3><span class="bar"></span>你的参数</h3>
-    <p class="hint">所有参数<b style="color:var(--gold)">实时生效</b>，右侧随改随更新；下方按钮用于跳转查看</p>
+    <p class="hint" id="panelHint">填好参数后点<b style="color:var(--gold)">「生成方案」</b>，右侧结果随之更新</p>
 
     <div class="field">
       <label>性别</label>
@@ -273,13 +308,13 @@ footer b{color:var(--txt)}
   <div class="stack">
 
     <div class="card">
-      <h3><span class="bar"></span>一、你的每日目标<span class="livetag"><span class="livedot"></span>实时</span></h3>
+      <h3><span class="bar"></span>一、你的每日目标<span class="livetag"><span class="livedot"></span><span class="ltxt">已更新</span></span></h3>
       <p class="hint">摄入锚定 TDEE，不是锚定 BMR</p>
       <div id="target"></div>
     </div>
 
     <div class="card">
-      <h3><span class="bar"></span>二、餐次方案<span class="livetag"><span class="livedot"></span>实时</span></h3>
+      <h3><span class="bar"></span>二、餐次方案<span class="livetag"><span class="livedot"></span><span class="ltxt">已更新</span></span></h3>
       <p class="hint">只配你勾选的餐次，其余餐次作为额度约束扣除</p>
       <div id="plan"></div>
       <div class="handoff">
@@ -296,13 +331,13 @@ footer b{color:var(--txt)}
     </div>
 
     <div class="card">
-      <h3><span class="bar"></span>三、麦当劳的结构性矛盾<span class="livetag"><span class="livedot"></span>实时</span></h3>
+      <h3><span class="bar"></span>三、麦当劳的结构性矛盾<span class="livetag"><span class="livedot"></span><span class="ltxt">已更新</span></span></h3>
       <p class="hint">同一份餐单，蛋白与钠无法同时达标</p>
       <div id="conflict"></div>
     </div>
 
     <div class="card">
-      <h3><span class="bar"></span>四、离「看得见腹肌」还有多远<span class="livetag"><span class="livedot"></span>实时</span></h3>
+      <h3><span class="bar"></span>四、离「看得见腹肌」还有多远<span class="livetag"><span class="livedot"></span><span class="ltxt">已更新</span></span></h3>
       <p class="hint">高体脂时腹肌被脂肪盖住，低体脂时可能被水盖住</p>
       <div id="abs"></div>
     </div>
@@ -313,6 +348,13 @@ footer b{color:var(--txt)}
 
 <footer>
   <div class="wrap">
+    <div class="star-cta">
+      <div class="who">
+        <b>这个工具帮到你了？</b>
+        <span>它在参加 2026 麦当劳程序员创意开发大赛，排行榜只看 GitHub Star —— 点一下就是支持</span>
+      </div>
+      <a class="go" href="https://github.com/ctkok1986/mcd-fit-buddy" target="_blank" rel="noopener">★ 去点一颗星</a>
+    </div>
     <b>麦麦减脂搭子（McFit Buddy）</b> ·
     <a href="https://github.com/ctkok1986/mcd-fit-buddy">GitHub 仓库</a> ·
     <a href="README.md">完整说明</a> ·
@@ -768,7 +810,7 @@ function bindSeg(id, key){
     [...$(id).children].forEach(b=>b.classList.remove("on"));
     btn.classList.add("on");
     state[key] = btn.dataset.v;
-    render();
+    markDirty();
   });
 }
 bindSeg("sex","sex"); bindSeg("activity","activity"); bindSeg("goal","goal");
@@ -777,13 +819,13 @@ bindSeg("sex","sex"); bindSeg("activity","activity"); bindSeg("goal","goal");
   $(id).addEventListener("input", ()=>{
     state[id] = parseFloat($(id).value);
     $(id+"_v").textContent = $(id).value;
-    render();
+    markDirty();
   });
 });
 $("bmr").addEventListener("input", ()=>{
   const v = parseFloat($("bmr").value);
   state.bmr = (isNaN(v) || v <= 0) ? null : v;
-  render();
+  markDirty();
 });
 $("meals").addEventListener("click", e=>{
   const btn = e.target.closest("button"); if(!btn) return;
@@ -792,7 +834,7 @@ $("meals").addEventListener("click", e=>{
   else state.solve.add(k);
   if (!state.solve.size) state.solve.add(k);   // 至少留一个
   btn.classList.toggle("on");
-  render();
+  markDirty();
 });
 /* 结果卡闪一下，让「刚刚更新过」这件事看得见 */
 function flashCards(){
@@ -803,13 +845,36 @@ function flashCards(){
   });
 }
 
+/* ── 「结果是不是最新的」这件事必须一直看得见 ──
+   参数一改就进 dirty 态：标题标签变橙写「待更新」、结果区变淡、按钮脉冲。
+   点了「生成方案」才回到「已更新」。 */
+let dirty = false;
+
+function setDirty(on){
+  if (dirty === on) return;              // 状态没变就别折腾 DOM
+  dirty = on;
+  document.body.classList.toggle("dirty", on);
+  document.querySelectorAll(".ltxt").forEach(e => {
+    e.textContent = on ? "待更新" : "已更新";
+  });
+  const hint = $("panelHint");
+  if (hint) hint.innerHTML = on
+    ? '参数已改动 —— 点下方<b style="color:var(--gold)">「生成方案」</b>更新结果'
+    : '填好参数后点<b style="color:var(--gold)">「生成方案」</b>，右侧结果随之更新';
+}
+function markDirty(){ setDirty(true); }
+
+/* ── 主按钮：唯一的重算入口 ──
+   为什么不做实时重算（v2.6.0 起）：
+     ① 手机上参数在上、结果在下，**不同屏**，实时变化根本看不见；
+     ② 参数有 8 项，连续调整时每次都重算只是噪音；
+     ③ 最要命的是「实时 + 按钮」必须二选一 ——
+        既然右边自己就变，按钮点下去什么也不发生，用户只会觉得按钮坏了。
+   （v2.4.1 只改了按钮文案，没动逻辑，所以那个「多余感」一直在。） */
 $("run").addEventListener("click", () => {
   render();
   flashCards();
-  // 所有参数本来就是实时算的，点按钮时结果早已是最新的 ——
-  // 所以这里给两件看得见的事：滚动到结果区（窄屏）+ 按钮变成完成态。
-  // 文案用「生成方案」而不是「重新计算」：后者暗示"有个旧结果要重算"，
-  // 但页面是实时的、没有旧结果，用户点下去找不到新旧对比，必然以为坏了。
+  setDirty(false);
   const stack = document.querySelector(".stack");
   if (stack && window.innerWidth <= 900){
     stack.scrollIntoView({behavior: "smooth", block: "start"});
@@ -920,7 +985,7 @@ function renderKnownInputs(){
       state.known[k] = state.known[k] || {kcal:0, protein:0, sodium:0};
       const v = parseFloat(inp.value);
       state.known[k][f] = (isNaN(v) || v < 0) ? 0 : v;
-      scheduleRender();
+      markDirty();
     });
   });
 
@@ -931,7 +996,7 @@ function renderKnownInputs(){
         state.known[k] = {kcal:0, protein:0, sodium:0};
         blk.querySelectorAll("input").forEach(i => { i.value = ""; });
         setMsg(k, null);
-        renderResults();
+        markDirty();
         return;
       }
       const desc = blk.querySelector('[data-f="desc"]').value.trim();
@@ -953,7 +1018,7 @@ function renderKnownInputs(){
       blk.querySelector('[data-f="protein"]').value = state.known[k].protein;
       blk.querySelector('[data-f="sodium"]').value = state.known[k].sodium;
       setMsg(k, r, "ok");
-      renderResults();
+      markDirty();
     });
   });
 
@@ -1060,14 +1125,8 @@ function buildOrderText(plan, info, target, knownList, tot){
   return L.join("\n");
 }
 
-/* 防抖：输入数字时不必每敲一个字符就算一次。
-   注意 render() 内部有结构签名保护，重复调用不会重建输入框。 */
-let renderTimer = null;
-function scheduleRender(){
-  clearTimeout(renderTimer);
-  renderTimer = setTimeout(render, 260);
-}
-
+/* 唯一的重算入口（原来还有个 scheduleRender 防抖，改成按钮驱动后已无调用，删掉）。
+   render() 内部有结构签名保护，重复调用不会重建输入框。 */
 function render(){
   renderKnownInputs();
   renderResults();
@@ -1283,5 +1342,7 @@ function renderResults(){
 
 render();
 </script>
+
+<a class="floatstar" href="https://github.com/ctkok1986/mcd-fit-buddy" target="_blank" rel="noopener">★ Star 支持</a>
 </body>
 </html>

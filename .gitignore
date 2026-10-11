@@ -18,3 +18,7 @@ node_modules/
 __pycache__/
 *.pyc
 .cache/
+
+# 浏览器自动化产物（截图/日志，每次生成且体积大，不进仓库）
+.playwright-cli/
+.playwright/

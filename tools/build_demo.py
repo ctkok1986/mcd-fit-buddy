@@ -24,6 +24,31 @@ CSV_PATH = os.path.join(ROOT, "data", "nutrition.csv")
 COMMON_PATH = os.path.join(ROOT, "data", "common-foods.csv")
 TPL_PATH = os.path.join(ROOT, "demo.template.html")
 OUT_PATH = os.path.join(ROOT, "demo.html")
+INDEX_PATH = os.path.join(ROOT, "index.html")
+NOJEKYLL_PATH = os.path.join(ROOT, ".nojekyll")
+
+# GitHub Pages 的根路径（/）只认 index.html，而真实产物是 demo.html。
+# 这里生成一个**极简跳转页**，而不是复制一份 demo.html ——
+# 复制会产生两个 800KB+ 的同源文件，必然出现"改了一个忘改另一个"的漂移。
+INDEX_TPL = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>麦麦减脂搭子 McFit Buddy</title>
+<meta http-equiv="refresh" content="0; url=demo.html">
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif;background:#181614;color:#f2efe9}
+p{font-size:15px}
+a{color:#ffc72c}
+</style>
+</head>
+<body>
+<p>正在打开麦麦减脂搭子… 若没有自动跳转，<a href="demo.html">点这里</a></p>
+</body>
+</html>
+"""
 
 # 页面上要勾选的餐次（决定「餐次组合」数量）。
 DEMO_MEALS = ("breakfast", "lunch", "dinner")
@@ -128,7 +153,13 @@ def main():
         html = html.replace(token, str(val))
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         f.write(html)
+    with open(INDEX_PATH, "w", encoding="utf-8") as f:
+        f.write(INDEX_TPL)
+    with open(NOJEKYLL_PATH, "w", encoding="utf-8") as f:
+        f.write("")
     print(f"已生成 {os.path.relpath(OUT_PATH, ROOT)}")
+    print(f"已生成 {os.path.relpath(INDEX_PATH, ROOT)}（GitHub Pages 入口，跳转到 demo.html）")
+    print(f"已生成 {os.path.relpath(NOJEKYLL_PATH, ROOT)}（跳过 Jekyll 处理）")
     print(f"  麦当劳营养数据 {len(rows)} 项")
     print(f"  常见食物数据   {len(common)} 项")
     for token, val in values.items():
