@@ -16,6 +16,7 @@ SUITES = [
     ("体成分与腹肌引擎", "test_abs_engine.py"),
     ("目标模式与券优先级", "test_goals.py"),
     ("餐次级填空求解", "test_slots.py"),
+    ("营养数据查询", "test_nutrition_lookup.py"),
 ]
 
 # 各套件汇总行写法不一（"结果：" / "测试结果："），统一用正则抓计数，

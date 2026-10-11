@@ -144,6 +144,21 @@ input:focus{outline:none;border-color:var(--red)}
 .chip.warn{background:rgba(251,146,60,.16);color:var(--orange)}
 .warnbox{background:rgba(251,146,60,.10);border-left:3px solid var(--orange);
   border-radius:6px;padding:10px 13px;font-size:13px;margin-top:11px;color:#ffd9b3}
+/* 点餐清单交接区 */
+.handoff{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.handoff .hrow{display:flex;gap:8px;align-items:center}
+.handoff button{background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.4);
+  color:#9ecbff;border-radius:8px;padding:9px 14px;font-size:13px;cursor:pointer;
+  font-family:inherit;font-weight:600;transition:.15s}
+.handoff button:hover{background:rgba(96,165,250,.26)}
+.handoff button.ok{background:rgba(74,222,128,.18);border-color:rgba(74,222,128,.45);
+  color:var(--green)}
+.handoff .hnote{font-size:11.5px;color:var(--dim);margin-top:8px;line-height:1.6}
+#orderText{width:100%;margin-top:10px;background:#0b0e13;border:1px solid var(--line);
+  color:#c9d3e0;border-radius:9px;padding:12px;font-size:12px;line-height:1.65;
+  font-family:ui-monospace,Menlo,Consolas,monospace;resize:vertical;min-height:120px;
+  display:none;white-space:pre}
+#orderText.show{display:block}
 .notebox{background:rgba(96,165,250,.10);border-left:3px solid var(--blue);
   border-radius:6px;padding:10px 13px;font-size:13px;margin-top:11px;color:#c3ddff}
 .absgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
@@ -267,6 +282,17 @@ footer b{color:var(--txt)}
       <h3><span class="bar"></span>二、餐次方案<span class="livetag"><span class="livedot"></span>实时</span></h3>
       <p class="hint">只配你勾选的餐次，其余餐次作为额度约束扣除</p>
       <div id="plan"></div>
+      <div class="handoff">
+        <div class="hrow">
+          <button id="genOrder">📋 生成点餐清单</button>
+        </div>
+        <div class="hnote">
+          本页<b style="color:var(--txt)">不接触你的麦当劳凭证，也不会直接下单</b>——
+          下单需要凭据，那是 Skill 的职责。<br>
+          点上方按钮生成清单，复制后发给 WorkBuddy，由它用你的 Token 完成下单。
+        </div>
+        <textarea id="orderText" readonly spellcheck="false"></textarea>
+      </div>
     </div>
 
     <div class="card">
@@ -1023,6 +1049,31 @@ $("run").addEventListener("click", () => {
   }, 1500);
 });
 
+/* 生成点餐清单：展开文本 + 尽力复制到剪贴板。
+   本地 file:// 下 clipboard API 可能被限，故先试 execCommand，
+   失败就提示用户手动全选复制 —— 不假装成功。 */
+$("genOrder").addEventListener("click", () => {
+  const ta = $("orderText"), b = $("genOrder");
+  ta.value = lastOrderText;
+  ta.classList.add("show");
+  ta.focus();
+  ta.select();
+  let copied = false;
+  try { copied = document.execCommand("copy"); } catch (e) { copied = false; }
+  if (!copied && navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(lastOrderText).then(() => {}, () => {});
+    copied = true;     // 异步无回执，按「已尝试」处理，但仍给手动提示
+  }
+  b.textContent = copied ? "✓ 已复制，粘贴给 WorkBuddy"
+                         : "↓ 已生成，请手动全选复制";
+  b.classList.toggle("ok", copied);
+  clearTimeout(b._t2);
+  b._t2 = setTimeout(() => {
+    b.textContent = "📋 重新生成";
+    b.classList.remove("ok");
+  }, 2600);
+});
+
 /* ── 已知餐次输入区 ──
    关键修复：只在「哪些餐次在麦当劳吃」发生变化时才重建 DOM。
    旧实现每次重算都重建输入框，导致输入过程中光标被弹掉。 */
@@ -1135,6 +1186,104 @@ function renderKnownInputs(){
 }
 
 function chip(ok, okTxt, badTxt){ return `<span class="chip ${ok?'ok':'bad'}">${ok?okTxt:badTxt}</span>`; }
+
+/* ── 点餐清单：把配餐结果整理成可交接给 WorkBuddy 的文本 ──
+   为什么网页不直接下单：
+     1. 下单请求要带 `Authorization: Bearer <你的token>`。
+        写进前端 = 任何人 F12 就能拿到，等于把下单权限公开。
+     2. mcp.mcd.cn 是服务端 MCP 端点，不会给浏览器开跨域。
+   所以边界是：**网页负责算，Skill 负责下单。** 这里只产出可复制的清单。 */
+let lastOrderText = "";
+
+/* 早餐时段商品的识别关键词 —— 仅用于【生成清单时提醒】，不改变配餐结果。
+   取值依据（2026-10-11 实测，门店 1410509 双菜单对照）：
+     当前 15:59 菜单里完全没有「麦满分系列 / 炒双蛋堡系列 / 早安营养卷」这三个类目，
+     而次日 07:30 预约菜单里都有 → 判定为早餐时段专供。
+   ⚠️ 刻意【不收录】「厚松饼」：521730 枫糖风味厚松饼猪柳蛋堡 在当前菜单里存在、
+      外送菜单也标「全天供应」，收进去会造成误报。
+   ⚠️ 麦当劳早餐时段各门店略有差异（实测见过 05:00–10:29 / 07:14–10:15 / 07:30–10:59），
+      这里取宽松的 05:00–10:30 只作提醒口径。 */
+const BREAKFAST_ONLY_KEYS = ["麦满分", "炒双蛋", "营养卷"];
+const BREAKFAST_FROM = 5.0;    // 05:00
+const BREAKFAST_TO = 10.5;     // 10:30
+
+function isBreakfastOnly(name){
+  return BREAKFAST_ONLY_KEYS.some(k => String(name).includes(k));
+}
+
+function buildOrderText(plan, info, target, knownList, tot){
+  const d = new Date();
+  const p2 = n => String(n).padStart(2, "0");
+  const L = [];
+  L.push("【麦当劳点餐清单 · 由麦麦减脂搭子生成】");
+  L.push("生成时间：" + d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-"
+         + p2(d.getDate()) + " " + p2(d.getHours()) + ":" + p2(d.getMinutes()));
+  L.push("目标模式：" + target.goalDesc);
+  L.push("");
+  plan.forEach(pm => {
+    if (!pm.combo.length) return;
+    L.push("── " + pm.label + " ──");
+    pm.combo.forEach((it, i) => L.push((i + 1) + ". " + it.name + " ×1"));
+    L.push("");
+  });
+
+  /* 时段提醒：本清单含早餐时段商品，而当前已过早餐时段。
+     只提醒，不替用户改方案 —— 用户可能正是为明早备餐。 */
+  const nowH = d.getHours() + d.getMinutes() / 60;
+  const bfItems = [];
+  plan.forEach(pm => pm.combo.forEach(it => {
+    if (isBreakfastOnly(it.name) && bfItems.indexOf(it.name) < 0){
+      bfItems.push(it.name);
+    }
+  }));
+  if (bfItems.length && !(nowH >= BREAKFAST_FROM && nowH < BREAKFAST_TO)){
+    L.push("── ⚠️ 时段提醒 ──");
+    L.push("本清单含早餐时段商品：" + bfItems.join("、"));
+    L.push("麦当劳早餐一般 05:00–10:30 供应（各门店略有差异），"
+           + "当前时间 " + p2(d.getHours()) + ":" + p2(d.getMinutes())
+           + " 已过早餐时段。");
+    L.push("· 若为明早备餐 → 直接按本清单下单，记得【预约早餐时段】");
+    L.push("· 若现在就要吃 → 需替换上述商品，其余餐次不受影响");
+    L.push("");
+  }
+  if (knownList.length){
+    L.push("── 非麦当劳餐次（不在订单内，仅记录）──");
+    knownList.forEach(m => L.push("· " + m.label + "：" + (m.kcal || 0).toFixed(0)
+      + " kcal / 蛋白 " + (m.protein || 0).toFixed(0)
+      + " g / 钠 " + (m.sodium || 0).toFixed(0) + " mg"));
+    L.push("");
+  }
+  L.push("── 全天合计 ──");
+  const dk = target.dailyKcal - tot.kcal, dp = target.proteinTarget - tot.protein;
+  L.push("热量 " + tot.kcal.toFixed(0) + " / " + target.dailyKcal.toFixed(0)
+         + " kcal（" + (dk >= 0 ? "剩余 " + dk.toFixed(0) : "超标 " + (-dk).toFixed(0)) + "）");
+  L.push("蛋白 " + tot.protein.toFixed(0) + " / " + target.proteinTarget.toFixed(0)
+         + " g（" + (dp > 0 ? "缺口 " + dp.toFixed(0) : "已达标") + "）");
+  L.push("钠 " + tot.sodium.toFixed(0) + " / " + SODIUM_CAP + " mg"
+         + (tot.sodium <= SODIUM_CAP ? "（在限内）"
+            : "（超 " + (tot.sodium - SODIUM_CAP).toFixed(0) + " mg）"));
+  L.push("");
+  L.push("── 请 WorkBuddy 用我的麦当劳 MCP 完成下单 ──");
+  L.push("1. 先问我要哪家门店（自提）或送餐地址（外送）");
+  L.push("2. query-meals 拉菜单，按上面的餐品名称匹配商品编码");
+  L.push("3. calculate-price 算实付金额；我的券优先用最优惠的那张");
+  L.push("4. 把金额给我确认后，再 create-order");
+  L.push("");
+  L.push("── 📦 渠道提醒（自提 vs 麦乐送）──");
+  L.push("· 两个渠道是两套商品编码，且【在售情况可能不同】，必须按渠道各查一次");
+  L.push("  实测：麦咖啡™冰奶铁中杯 自提有售（507409），外送菜单里只有热奶铁（507328）");
+  L.push("· 同一商品外送价通常更高（实测：板烧鸡腿堡 自提 ¥24 / 外送 ¥26）");
+  L.push("· 不要跨渠道复用商品编码");
+  L.push("");
+  L.push("── 其他注意 ──");
+  L.push("· 餐品在菜单里查不到时，先判断是「下架」还是「时段限定」——");
+  L.push("  用 query-meals 的 reservationDate 拉对应时段菜单做对照，");
+  L.push("  对照后仍无同名商品才算下架，不得用相近商品顶替");
+  L.push("· 餐品不在官方营养表（158 项）内时，如实说「查不到营养数据」，");
+  L.push("  不得估算、不得用相近商品替代");
+  L.push("· 未确认金额前不要下单");
+  return L.join("\n");
+}
 
 /* 防抖：输入数字时不必每敲一个字符就算一次。
    注意 render() 内部有结构签名保护，重复调用不会重建输入框。 */
@@ -1350,6 +1499,8 @@ function renderResults(){
         有人天生六块、有人非对称四块或八块，这一点练不出来也吃不出来。
         本工具做的是让已有的腹肌「看得见」：把覆盖它的脂肪减掉、把盖住它的水分排掉。</div>`;
   }
+  lastOrderText = buildOrderText(plan, info, target, knownList,
+                                 {kcal: totKcal, protein: totProt, sodium: totNa});
   flashCards();     // 重算后让结果卡闪一下，让「已经更新」看得见
 }
 

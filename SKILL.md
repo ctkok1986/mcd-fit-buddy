@@ -395,6 +395,47 @@ python scripts/budget_tracker.py \
 
 ---
 
+## 模块二-B：响应网页生成的点餐清单
+
+`demo.html`（可视化演示页）里点「📋 生成点餐清单」会产出一段结构化文本，
+形如：
+
+```
+【麦当劳点餐清单 · 由麦麦减脂搭子生成】
+生成时间：2026-10-11 15:12
+目标模式：增肌减脂（体成分重组）
+
+── 早餐 ──
+1. 原味板烧鸡腿炒双蛋堡 ×1
+2. 冰奶铁小杯 ×1
+...
+── 全天合计 ──
+热量 2033 / 2024 kcal（超标 9）
+蛋白 137 / 146 g（缺口 9）
+钠 3385 / 2000 mg（超 1385 mg）
+
+── 请 WorkBuddy 用我的麦当劳 MCP 完成下单 ──
+1. 先问我要哪家门店（自提）或送餐地址（外送）
+2. query-meals 拉菜单，按上面的餐品名称匹配商品编码
+3. calculate-price 算实付金额；我的券优先用最优惠的那张
+4. 把金额给我确认后，再 create-order
+```
+
+用户粘贴这段时，按清单里的 4 步执行。**三条必须遵守：**
+
+1. **网页不接触凭证** —— 清单里没有 Token，也不需要。下单由本 Skill 用
+   已配置的 MCP 完成。**不要把 Token 回填到网页或任何前端。**
+2. **餐品名 → 商品编码必须实查** —— 清单给的是**营养表名称**，
+   真实下单要的是 `productCode`，必须用 `query-meals` 拉菜单后匹配。
+   **自提与外送是两套编码**（实测：双层吉士汉堡 自提 `1120` / 外送 `901120`），
+   必须按渠道各查一次，不得跨渠道复用。
+3. **金额未确认不下单** —— 这是铁律，不因清单里已经算过营养就跳过。
+
+> 若匹配不上（菜单里没有同名商品），**如实告诉用户哪个没匹配到**，
+> 不要用相近商品顶替。
+
+---
+
 ## 模块三：下单比价（自动挑最优惠）
 
 ### 触发
@@ -585,6 +626,19 @@ python scripts/order_optimizer.py data/channel-snapshot.sample.json
 - **用券必须报代价**：用券方案要与不用券方案对比，如实写出营养差异
 - **券映射不臆测**：拿不到 productCode 的券列入"未匹配"，不得猜商品
 - **跨渠道不串用商品编码**：自提与外送编码体系不同，必须按名称分别查
+- **渠道差异不止编码**：同一商品在两个渠道的**在售情况也可能不同**，
+  必须按选定渠道重新核对菜单，不得假定"换个渠道照样能买"
+  （实测：麦咖啡™冰奶铁中杯 自提有售 `507409`，外送菜单里只有**热**奶铁 `507328`）
+- **渠道价格各查各报**：同一商品外送价通常更高
+  （实测 板烧鸡腿堡 自提 ¥24 / 外送 ¥26），**不得拿自提价替外送报价**
+- **时段限定 ≠ 下架**：菜单里查不到时，先用 `query-meals` 的 `reservationDate`
+  拉对应时段菜单做对照；对照后仍无同名商品才算下架。
+  已确认属时段限定的（如早餐专供），**提示用户时段冲突并给出"预约该时段 / 换商品"两条路**，
+  **不要替用户改方案**——他可能正是为明早备餐
+- **营养数据查不到就说查不到**：商品不在 `data/nutrition.csv` 内时，
+  必须明确告知"该商品没有营养数据"，**不得估算、不得用相近商品替代**。
+  用 `scripts/nutrition_lookup.py <名称>` 查（有 BOM 处理、部分匹配、相近项提示），
+  **查不到会返回退出码 2**，据此如实回话
 - **不信 `success:true`**：`calculate-price` 会静默丢弃渠道不可售商品，必须逐项核对 `productList`
 - **不靠券面标签判渠道**：券必须逐渠道试算
 - **成本拆解必须自洽**：三项之和 ≠ 总差额时报警
@@ -598,6 +652,7 @@ python scripts/order_optimizer.py data/channel-snapshot.sample.json
 ```
 ├── SKILL.md                        # 本文件
 ├── scripts/meal_planner.py         # 配餐优化引擎（--goal 三模式 / --bmr / --bodyfat / --coupons）
+├── scripts/nutrition_lookup.py     # 营养数据查询（查不到返回退出码 2，禁止替代）
 ├── scripts/abs_engine.py           # 体成分引擎（海军法体脂 / 腹肌可见度 / 水潴留 / 时间线）
 ├── scripts/budget_tracker.py       # 当日剩余额度与"还能吃什么"引擎
 ├── scripts/coupon_context.py       # 券上下文（省钱+临期双维优先级 + 名称匹配 + 代价对比）
@@ -608,12 +663,16 @@ python scripts/order_optimizer.py data/channel-snapshot.sample.json
 ├── tests/test_coupon_context.py    # 券上下文回归测试（37 项）
 ├── tests/test_abs_engine.py        # 体成分与腹肌回归测试（37 项）
 ├── tests/test_goals.py             # 目标模式与券优先级回归测试（28 项）
-├── tests/run_all.py                # 一键跑全部测试（共 203 项）
+├── tests/test_slots.py             # 餐次级填空回归测试（48 项）
+├── tests/test_nutrition_lookup.py  # 营养查询回归测试（34 项）
+├── tests/run_all.py                # 一键跑全部测试（共 285 项）
 ├── data/nutrition.csv              # 158 项营养数据（官方接口快照）
+├── data/common-foods.csv           # 76 项常见食物（描述自动估算用）
 ├── data/channel-snapshot.sample.json  # 渠道快照样例（真实抓取）
 ├── data/coupon-snapshot.sample.json   # 券快照样例（真实抓取）
+├── demo.html                       # 可视化演示页（含时段/渠道提醒 + 生成点餐清单）
 ├── references/mcp-tools.md         # MCP 工具速查
-├── examples/                       # 真实运行记录
+├── examples/                       # 真实运行记录（含首次真实下单存档）
 ├── README.md / MCP_INTEGRATION.md / mcp-config.example.json
 └── workbuddy.md                    # WorkBuddy 联动开发记录
 ```
