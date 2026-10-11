@@ -360,6 +360,14 @@ MEAL_SLOTS = {
               "drink": ["drink"], "w": 0.15},
 }
 
+# 单餐额度上限系数：待解餐次最多拿到其「自然份额」的该倍数。
+# 为什么需要这个上限：
+#   剩余额度可能远超一餐的正常食量（例如只配晚餐，而早/午都没吃），
+#   若不设上限就会把全天 2000+ kcal 塞进一顿晚餐，产出一份荒唐方案。
+# 为什么是 1.30：这是产品判断，不是医学阈值 —— 取「比常规一餐最多多三成」，
+#   既能消化掉常见的手误/少报带来的余量，又不会让单餐失控。
+SLOT_SCALE_CAP = 1.30
+
 
 def build_slot_plan(items, target, solve_keys, known_meals,
                     sodium_weight=0.5, coupon_ctx=None):
@@ -369,9 +377,17 @@ def build_slot_plan(items, target, solve_keys, known_meals,
     known_meals : 已知餐次 [{'label':'午餐','kcal':800,'protein':30,'sodium':1200}]
 
     额度分配规则：
-      每个待解餐次的标准额度 = 全天目标 × 该餐次权重
+      每个待解餐次的标准份额 = 全天目标 × 该餐次权重
       剩余额度 = 全天目标 − 已知餐次合计
-      剩余额度不足时按比例压缩；充足时不超发（余额自动留作余量）
+      scale = clamp(剩余额度 / 待解餐次标准份额合计, 0, SLOT_SCALE_CAP)
+        · scale > 1 —— 剩余多，等比放大（方案会随已知餐次变化，额度不浪费）
+        · scale < 1 —— 剩余少，等比压缩
+        · 上限 SLOT_SCALE_CAP —— 单餐不超过自然份额的该倍数
+          （防止「只配早餐」时把全天额度塞进一顿早餐）
+
+    ⚠️ 历史缺陷（v2.4.0 修复）：旧逻辑是 `剩余 ≥ 标准 → scale = 1`，
+       导致「已知合计 ≤ 全天 − 标准份额」的整个区间内方案**完全不变**，
+       用户改了早餐/午餐却看不到任何变化，而且剩余额度永远用不上。
 
     返回 (plan, info)。plan 元素为 (餐次名, 组合, 热量目标, 蛋白目标)。
     """
@@ -388,10 +404,13 @@ def build_slot_plan(items, target, solve_keys, known_meals,
     total_std = sum(std.values())
     if total_std <= 0:
         scale = 0.0
-    elif left_kcal >= total_std:
-        scale = 1.0                      # 额度充足：按标准分配，不超发
     else:
-        scale = max(0.0, left_kcal / total_std)   # 额度不足：等比压缩
+        # 尺度 = 剩余额度 / 待解餐次标准份额合计，夹在 [0, SLOT_SCALE_CAP]：
+        #   > 1  剩余多 → 按比例放大，让方案【响应已知餐次的变化】且把额度用上
+        #   < 1  剩余少 → 等比压缩
+        #   上限 单餐不得超过自然份额的 SLOT_SCALE_CAP 倍，
+        #        否则「只配早餐」时会把全天额度塞进一顿早餐
+        scale = min(SLOT_SCALE_CAP, max(0.0, left_kcal / total_std))
 
     plan, used, notes = [], set(), {}
     for k in solve_keys:

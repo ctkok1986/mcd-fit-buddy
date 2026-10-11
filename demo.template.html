@@ -180,14 +180,14 @@ footer b{color:var(--txt)}
     <span class="tag">2026 麦当劳程序员创意开发大赛 · 参赛作品</span>
     <h1>在麦当劳<br><span class="hl">吃出腹肌</span></h1>
     <p class="sub">
-      内核不是节食，而是<strong>增肌减脂</strong>——在不掉肌肉的前提下减脂，能增肌更好。
-      填上体脂率与目标，它从 158 项官方营养数据里真实求解，并在补不上的地方<strong>如实告诉你补不上</strong>。
+      不是少吃，而是<strong>增肌减脂</strong> —— 不掉肌肉地减脂，能增肌更好。
+      填上体脂率和目标，它从官方营养数据里排出三餐：<strong>补得上就给方案，补不上就照实说</strong>。
     </p>
     <div class="stats">
       <div class="stat"><b>__ITEM_COUNT__</b><span>项官方营养数据</span></div>
-      <div class="stat"><b>251</b><span>项回归测试全通过</span></div>
-      <div class="stat"><b>7</b><span>种餐次组合</span></div>
-      <div class="stat"><b>9</b><span>个开发中修复的真缺陷</span></div>
+      <div class="stat"><b>__GOAL_COUNT__</b><span>种目标模式</span></div>
+      <div class="stat"><b>__COMBO_COUNT__</b><span>种餐次组合</span></div>
+      <div class="stat"><b>✓</b><span>真实下单已跑通</span></div>
     </div>
   </div>
 </div>
@@ -198,7 +198,7 @@ footer b{color:var(--txt)}
   <!-- ── 左：参数 ── -->
   <div class="card side">
     <h3><span class="bar"></span>你的参数</h3>
-    <p class="hint">所有参数<b style="color:var(--gold)">实时生效</b>，改完就更新 —— 按钮只是帮你跳到结果</p>
+    <p class="hint">所有参数<b style="color:var(--gold)">实时生效</b>，右侧随改随更新；下方按钮用于跳转查看</p>
 
     <div class="field">
       <label>性别</label>
@@ -265,7 +265,7 @@ footer b{color:var(--txt)}
     </div>
 
     <div class="sidefoot">
-      <button class="btn" id="run">重新计算</button>
+      <button class="btn" id="run">生成方案</button>
     </div>
   </div>
 
@@ -399,6 +399,11 @@ const MEAL_SLOTS = {
   lunch:{label:"午餐", main:["burger"], side:["side"], drink:["drink"], w:0.40},
   dinner:{label:"晚餐", main:["burger"], side:["side"], drink:["drink"], w:0.35}
 };
+/* 单餐额度上限系数 —— 必须与 scripts/meal_planner.py 的 SLOT_SCALE_CAP 完全一致，
+   否则网页与命令行会给出不同方案（对拍会立刻发现）。
+   含义：待解餐次最多拿到其自然份额的 1.30 倍，
+   防止「只配早餐」时把全天额度塞进一顿早餐。 */
+const SLOT_SCALE_CAP = 1.30;
 const ABS_MALE = [
   [8,"竞技级线条","腹部分离深刻，接近比赛状态。长期维持可能影响激素水平。"],
   [10,"八块清晰","腹肌分块完全可见，线条锐利。这是可持续的下限附近。"],
@@ -521,8 +526,12 @@ function buildSlotPlan(items, target, solveKeys, known, sw){
   const totalStd = Object.values(std).reduce((a,b)=>a+b,0);
   let scale;
   if (totalStd <= 0) scale = 0;
-  else if (leftKcal >= totalStd) scale = 1;
-  else scale = Math.max(0,leftKcal/totalStd);
+  else scale = Math.min(SLOT_SCALE_CAP, Math.max(0, leftKcal/totalStd));
+  /* 尺度 > 1：剩余多 → 放大（方案会随已知餐次变化，额度不浪费）
+     尺度 < 1：剩余少 → 压缩
+     上限 SLOT_SCALE_CAP：单餐不超过自然份额的该倍数
+     历史缺陷：旧代码是 `剩余>=标准 → scale=1`，导致已知餐次在很大区间内
+     改了也不影响方案，用户以为页面坏了。 */
 
   const plan = [], used = new Set(), notes = {};
   for (const k of solveKeys){
@@ -797,18 +806,20 @@ function flashCards(){
 $("run").addEventListener("click", () => {
   render();
   flashCards();
-  // 所有参数本来就是实时算的，点按钮时结果早已是最新 ——
-  // 所以这里给两件看得见的事：滚动到结果区 + 按钮变成完成态。
+  // 所有参数本来就是实时算的，点按钮时结果早已是最新的 ——
+  // 所以这里给两件看得见的事：滚动到结果区（窄屏）+ 按钮变成完成态。
+  // 文案用「生成方案」而不是「重新计算」：后者暗示"有个旧结果要重算"，
+  // 但页面是实时的、没有旧结果，用户点下去找不到新旧对比，必然以为坏了。
   const stack = document.querySelector(".stack");
   if (stack && window.innerWidth <= 900){
     stack.scrollIntoView({behavior: "smooth", block: "start"});
   }
   const b = $("run");
-  b.textContent = "✓ 已是最新方案";
+  b.textContent = "✓ 方案已就绪";
   b.classList.add("done");
   clearTimeout(b._t);
   b._t = setTimeout(() => {
-    b.textContent = "重新计算";
+    b.textContent = "生成方案";
     b.classList.remove("done");
   }, 1500);
 });
@@ -1125,6 +1136,8 @@ function renderResults(){
     剩余额度 <b style="color:var(--gold)">${info.leftKcal.toFixed(0)} kcal</b>
     ｜蛋白 <b style="color:var(--gold)">${info.leftProtein.toFixed(0)} g</b>
     ${info.scale < 0.999 ? `<span class="chip warn">已按 ${(info.scale*100).toFixed(0)}% 压缩</span>` : ""}
+    ${info.scale > 1.001 && info.scale < SLOT_SCALE_CAP - 0.001 ? `<span class="chip ok">已按 ${(info.scale*100).toFixed(0)}% 放大</span>` : ""}
+    ${info.scale >= SLOT_SCALE_CAP - 0.001 ? `<span class="chip warn">已达单餐上限（${SLOT_SCALE_CAP}× 自然份额）—— 余量请用非麦当劳食物补齐</span>` : ""}
     ${info.leftKcal < 0 ? `<span class="chip bad">已超目标 ${(-info.leftKcal).toFixed(0)} kcal</span>` : ""}
   </div>`;
 

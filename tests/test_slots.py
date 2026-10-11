@@ -12,8 +12,8 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 from meal_planner import (  # noqa: E402
-    MEAL_SLOTS, SODIUM_DAILY_CAP, build_slot_plan, build_target, load_items,
-    parse_known, plan_totals,
+    MEAL_SLOTS, SLOT_SCALE_CAP, SODIUM_DAILY_CAP, build_slot_plan, build_target,
+    load_items, parse_known, plan_totals,
 )
 
 PASS = FAIL = 0
@@ -203,13 +203,67 @@ print("=" * 64)
 print("八、只配一餐时不会吃光全天额度")
 print("=" * 64)
 
-# 只解早餐、午晚餐已知：早餐额度应接近"全天目标×25%"而非剩余全额
+# 只解早餐、午晚餐已知：早餐额度应被【单餐上限】关住，
+# 而不是「刚好等于标准份额」（那是 v2.4.0 之前的旧规则，已修）。
 plan, info = build_slot_plan(ITEMS, TARGET, ["breakfast"],
                              [KNOWN_POOL["lunch"], KNOWN_POOL["dinner"]])
 kcal_t = plan[0][2]
 std = DAILY * MEAL_SLOTS["breakfast"]["w"]
-check(kcal_t <= std + 1,
-      f"早餐额度 {kcal_t:.0f} ≤ 标准额度 {std:.0f}（不会因为午晚已知就狂吃早餐）")
+cap = std * SLOT_SCALE_CAP
+check(kcal_t <= cap + 1,
+      f"早餐额度 {kcal_t:.0f} ≤ 上限 {cap:.0f}（{SLOT_SCALE_CAP}× 标准份额 {std:.0f}）"
+      f"—— 不会因为午晚已知就狂吃早餐")
+check(kcal_t > 1, f"早餐额度 {kcal_t:.0f} > 0（额度没被误压缩）")
+
+# 极端的「只配早餐且午晚都没吃」也不能吞掉全天额度
+plan2, info2 = build_slot_plan(ITEMS, TARGET, ["breakfast"], [])
+kcal_t2 = plan2[0][2]
+check(info2["left_kcal"] > DAILY - 1, "极端情况：剩余额度 = 全天目标")
+check(kcal_t2 <= cap + 1,
+      f"极端情况早餐 {kcal_t2:.0f} 仍 ≤ 上限 {cap:.0f}（不吞掉全天）")
+check(kcal_t2 < DAILY * 0.5,
+      f"极端情况早餐 {kcal_t2:.0f} 远小于全天 {DAILY:.0f}（上限有效）")
+
+print()
+print("=" * 64)
+print("九、额度分配必须【响应已知餐次】—— v2.4.0 修的缺陷")
+print("=" * 64)
+# 旧逻辑 `剩余>=标准 → scale=1` 会让已知餐次在很大区间内改了也不影响方案。
+# 下面这组用例专门钉住「必须变化」。
+_bf, _lc = 300, 500
+p_lo, i_lo = build_slot_plan(ITEMS, TARGET, ["dinner"], [
+    {"label": "早餐", "kcal": _bf, "protein": 12, "sodium": 600},
+    {"label": "午餐", "kcal": _lc, "protein": 20, "sodium": 900}])
+p_hi, i_hi = build_slot_plan(ITEMS, TARGET, ["dinner"], [
+    {"label": "早餐", "kcal": 500, "protein": 20, "sodium": 600},
+    {"label": "午餐", "kcal": 800, "protein": 32, "sodium": 900}])
+
+check(i_hi["left_kcal"] < i_lo["left_kcal"],
+      f"已知变多 → 剩余额度变小（{i_lo['left_kcal']:.0f} → {i_hi['left_kcal']:.0f}）")
+check(p_hi[0][2] != p_lo[0][2],
+      f"晚餐目标额度随之变化（{p_lo[0][2]:.0f} → {p_hi[0][2]:.0f}）")
+check([i["name"] for i in p_hi[0][1]] != [i["name"] for i in p_lo[0][1]],
+      "晚餐组合确实变了（旧逻辑此处会完全相同）")
+
+# 缩放上限：剩余再多也不能超过 SLOT_SCALE_CAP
+check(abs(i_lo["scale"] - SLOT_SCALE_CAP) < 1e-9,
+      f"剩余充裕时 scale 顶到上限 {SLOT_SCALE_CAP}（实得 {i_lo['scale']:.4f}）")
+plan_c, info_c = build_slot_plan(ITEMS, TARGET, ["dinner"], [])
+check(abs(info_c["scale"] - SLOT_SCALE_CAP) < 1e-9,
+      f"极端充裕时 scale 仍被关在上限（实得 {info_c['scale']:.4f}）")
+check(plan_c[0][2] <= DAILY * MEAL_SLOTS["dinner"]["w"] * SLOT_SCALE_CAP + 1,
+      "极端充裕时晚餐额度 ≤ 自然份额 × 上限")
+
+# 全天三餐都配：没有已知餐次 → 剩余 = 全天 → scale 应正好 1.0
+p_all, i_all = build_slot_plan(ITEMS, TARGET, ["breakfast", "lunch", "dinner"], [])
+check(abs(i_all["scale"] - 1.0) < 1e-9,
+      f"三餐全配时 scale = 1.0（实得 {i_all['scale']:.4f}）—— 常规行为不变")
+
+# 压缩路径不受影响
+p_low, i_low = build_slot_plan(ITEMS, TARGET, ["dinner"], [
+    {"label": "早餐", "kcal": 700, "protein": 28, "sodium": 600},
+    {"label": "午餐", "kcal": 1000, "protein": 40, "sodium": 900}])
+check(i_low["scale"] < 1.0, f"剩余不足仍会压缩（scale={i_low['scale']:.3f}）")
 
 print()
 print("=" * 64)
