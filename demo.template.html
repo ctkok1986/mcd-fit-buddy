@@ -215,6 +215,16 @@ footer b{color:var(--txt)}
   .star-cta{padding:16px 18px}
   .star-cta .go{width:100%;justify-content:center}
 }
+/* 段选控件下方的说明文字（讲清当前档位的含义） */
+.segdesc{font-size:11.5px;color:#7c8794;margin-top:7px;line-height:1.55}
+.segdesc b{color:var(--txt)}
+/* 「补齐方案」块 */
+.fixbox{margin-top:12px;padding:12px 14px;border-radius:10px;
+  background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.28)}
+.fixbox h4{margin:0 0 7px;font-size:12.5px;color:#4ade80;font-weight:700}
+.fixrow{display:flex;justify-content:space-between;gap:12px;
+  font-size:12.5px;color:var(--dim);padding:3px 0}
+.fixrow b{color:var(--txt);font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -254,7 +264,7 @@ footer b{color:var(--txt)}
 
     <div class="field">
       <label>体重 <b><span id="weight_v">78</span> kg</b></label>
-      <input type="range" id="weight" min="40" max="150" step="0.5" value="78">
+      <input type="range" id="weight" min="40" max="150" step="0.1" value="78">
     </div>
 
     <div class="field">
@@ -268,19 +278,20 @@ footer b{color:var(--txt)}
     </div>
 
     <div class="field">
-      <label>活动强度</label>
+      <label>活动强度<span style="color:#5c6570;font-size:11px">　按<b style="color:var(--txt)">一周运动频率</b>选</span></label>
       <div class="seg" id="activity">
         <button data-v="sedentary">久坐</button>
         <button data-v="light" class="on">轻度</button>
         <button data-v="moderate">中度</button>
         <button data-v="active">高度</button>
       </div>
+      <div class="segdesc" id="actDesc"></div>
     </div>
 
     <div class="field">
       <label>体脂率 <b><span id="bodyfat_v">22</span> %</b>
         <span style="color:#5c6570;font-size:11px">（不填则按体重算蛋白）</span></label>
-      <input type="range" id="bodyfat" min="0" max="45" step="0.5" value="22">
+      <input type="range" id="bodyfat" min="0" max="45" step="0.1" value="22">
     </div>
 
     <div class="field">
@@ -340,7 +351,7 @@ footer b{color:var(--txt)}
     </div>
 
     <div class="card">
-      <h3><span class="bar"></span>三、麦当劳的结构性矛盾<span class="livetag"><span class="livedot"></span><span class="ltxt">已更新</span></span></h3>
+      <h3><span class="bar"></span>三、蛋白与钠的取舍<span class="livetag"><span class="livedot"></span><span class="ltxt">已更新</span></span></h3>
       <p class="hint">同一份餐单，蛋白与钠无法同时达标</p>
       <div id="conflict"></div>
     </div>
@@ -824,6 +835,22 @@ function bindSeg(id, key){
 }
 bindSeg("sex","sex"); bindSeg("activity","activity"); bindSeg("goal","goal");
 
+/* 活动强度各档的通俗说明 ——
+   只有「久坐 / 轻度 / 中度 / 高度」四个词，用户不知道自己该选哪个。
+   文案与 ACTIVITY 的系数一一对应，改系数时记得同步这里。 */
+const ACT_HINT = {
+  sedentary: "办公室久坐、日常走动为主，几乎不额外运动",
+  light:     "每周 1-3 次轻量运动（散步 / 慢跑 / 瑜伽）",
+  moderate:  "每周 3-5 次中等强度运动（跑步 / 器械 / 球类）",
+  active:    "每周 6-7 次高强度训练，或从事体力工作",
+  athlete:   "每天训练 2 次，或重体力劳动",
+};
+function updateActDesc(){
+  const el = $("actDesc");
+  if (el) el.innerHTML = "💡 " + (ACT_HINT[state.activity] || "");
+}
+$("activity").addEventListener("click", updateActDesc);
+
 ["weight","height","age","bodyfat"].forEach(id=>{
   $(id).addEventListener("input", ()=>{
     state[id] = parseFloat($(id).value);
@@ -842,7 +869,13 @@ $("meals").addEventListener("click", e=>{
   if (state.solve.has(k)) state.solve.delete(k);
   else state.solve.add(k);
   if (!state.solve.size) state.solve.add(k);   // 至少留一个
-  btn.classList.toggle("on");
+  // 按 state 回写 class，而不是 toggle ——
+  // 否则「只剩一餐时点它」会被 toggle 成 off，而 state 里它还留着（视觉与状态不一致）。
+  [...$("meals").children].forEach(b => b.classList.toggle("on", state.solve.has(b.dataset.v)));
+  // 餐次变化 = 「输入区结构」变化：立刻重建输入块，
+  // 让用户马上能填这一餐吃了什么（含「⚡ 自动估算」按钮）。
+  // 注意边界：左侧输入区即时响应；右侧结果区仍归「生成方案」按钮驱动。
+  renderKnownInputs();
   markDirty();
 });
 /* 结果卡闪一下，让「刚刚更新过」这件事看得见 */
@@ -1307,14 +1340,63 @@ function renderResults(){
     + `</div>`;
 
   if (full && tProt.sodium > SODIUM_CAP && tSod.protein < target.proteinTarget*0.95){
-    cHtml += `<div class="warnbox"><b>这不是算法没调好，是餐单的结构性事实。</b><br>
-      在纯麦当劳餐单上，「热量达标 + 蛋白达标 + 钠达标」三者不可兼得：<br>
-      · 要蛋白 ${target.proteinTarget.toFixed(0)} g，钠会到 ${tProt.sodium.toFixed(0)} mg<br>
-      · 要控钠 ${SODIUM_CAP} mg 以内，蛋白只有 ${tSod.protein.toFixed(0)} g<br>
-      建议选定一侧作主线，另一侧用非麦当劳食物补齐（无糖希腊酸奶、水煮鸡胸、蛋白粉）。</div>`;
+    /* ① 先去找一条「钠达标」的餐单：
+          用几档控钠权重各解一次，取其中「钠 ≤ 上限且蛋白最高」的一条。
+          只在渲染层做（重复调用引擎函数）—— 配餐引擎未改，对拍仍逐项一致。 */
+    let comp = null;
+    for (const sw of [4, 8, 12, 20, 40]){
+      const pl = buildSlotPlan(ITEMS, target, solveKeys, knownList, sw);
+      const t  = totals(pl.plan.flatMap(x => x.combo));
+      if (t.sodium <= SODIUM_CAP && (!comp || t.protein > comp.t.protein)) comp = {t, sw};
+    }
+    const base    = comp ? comp.t : tSod;          // 补齐方案的主线餐单
+    const baseTag = comp ? "钠达标餐单" : "控钠优先餐单";
+
+    /* ② 补齐蛋白：来源从常见食物表里取（不硬编码，避免与 CSV 漂移），按「钠增量最小」排序。
+          补蛋白一定同时带钠 —— 结果如实标注，不挑好看的报。 */
+    const protGap = target.proteinTarget - base.protein;
+    const sups = ["鸡胸肉","蛋白粉","希腊酸奶"].map(nm => {
+      const f = COMMON.find(x => x.name === nm);
+      if (!f || !f.protein) return null;
+      const n = Math.ceil(protGap / f.protein);
+      return {name:nm, portion:f.portion, n, p:n*f.protein, na:n*f.sodium,
+              kcal:n*f.kcal, totNa:base.sodium + n*f.sodium};
+    }).filter(Boolean).sort((a,b) => a.na - b.na);
+
+    let sHtml = "";
+    if (sups.length){
+      const best = sups[0];
+      const okNa = best.totNa <= SODIUM_CAP;
+      const okKcal = Math.abs(base.kcal + best.kcal - target.dailyKcal) <= target.dailyKcal*0.05;
+      const okAll = okNa && okKcal;
+      sHtml = `<div class="fixbox"><h4>${okAll ? "三个目标都达标的一种吃法" : "把三个目标都照顾到，可以这么补"}</h4>
+        <div style="font-size:12.5px;color:var(--dim);margin-bottom:8px">
+          麦当劳那部分换成「${baseTag}」：热量 ${base.kcal.toFixed(0)} kcal｜蛋白 ${base.protein.toFixed(0)} g｜钠 ${base.sodium.toFixed(0)} mg${base.sodium<=SODIUM_CAP?" ✅":" ⚠️"}；<br>
+          蛋白还差 ${protGap.toFixed(0)} g，用非麦当劳食物补：</div>`
+        + sups.map(s => `<div class="fixrow"><span>${s.name} ${s.portion} × ${s.n}</span>
+            <b>蛋白 +${s.p.toFixed(0)} g｜钠 +${s.na.toFixed(0)} mg</b></div>`).join("")
+        + `<div class="fixrow" style="border-top:1px solid rgba(74,222,128,.22);margin-top:6px;padding-top:7px">
+            <span>补完后（按 ${best.name}）</span>
+            <b style="color:${okNa?'#4ade80':'#fb923c'}">热量 ${(base.kcal+best.kcal).toFixed(0)}｜蛋白 ${(base.protein+best.p).toFixed(0)} g｜钠 ${best.totNa.toFixed(0)} mg</b>
+          </div>
+        <div style="font-size:12px;color:var(--dim);margin-top:8px;line-height:1.65">
+          ${okNa
+            ? `三条都落在目标内了。上表按「钠增量最小」排序，第一条最省钠。`
+            : `补蛋白会同时带钠（钠 ${base.sodium.toFixed(0)} → ${best.totNa.toFixed(0)} mg）。想再压低，可把其中一餐交给非麦当劳（点掉对应餐次并填入），把低钠蛋白来源留给它。`}
+        </div></div>`;
+    }
+
+    cHtml += `<div class="warnbox"><b>热量 / 蛋白 / 钠 这三个目标彼此此消彼长。</b><br>
+      想多要蛋白，往往要选钠偏高的餐品；把钠压下来，蛋白又容易不够 ——<br>
+      换任何一份餐单，同一组目标都要做同样的取舍。<br><br>
+      以你现在的参数：<br>
+      · 走「蛋白优先」：蛋白 ${target.proteinTarget.toFixed(0)} g，钠 ${tProt.sodium.toFixed(0)} mg<br>
+      · 走「控钠优先」：蛋白 ${tSod.protein.toFixed(0)} g，钠 ${tSod.sodium.toFixed(0)} mg<br>
+      ${comp ? `· 严格控到钠达标：蛋白 ${comp.t.protein.toFixed(0)} g，钠 ${comp.t.sodium.toFixed(0)} mg ✅<br>` : ""}
+      选一边作主线，另一边用非麦当劳食物补齐。</div>` + sHtml;
   } else if (!full){
     cHtml += `<div class="notebox">当前只配 ${solveKeys.length} 个餐次，其余餐次由非麦当劳补足，
-      故此处只对比麦当劳这部分的营养，不作「不可兼得」判定。</div>`;
+      故此处只对比麦当劳这部分的营养，不作「三目标」判定。</div>`;
   }
   cEl.innerHTML = cHtml;
 
@@ -1377,6 +1459,7 @@ function renderResults(){
 }
 
 render();
+updateActDesc();          // 首次渲染活动强度说明
 </script>
 
 <a class="floatstar" href="https://github.com/ctkok1986/mcd-fit-buddy" target="_blank" rel="noopener">★ Star 支持</a>

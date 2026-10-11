@@ -282,8 +282,8 @@ def fmt(args, p):
         direction = "高" if diff > 0 else "低"
         out.append(f"  差异           {diff:+.0f} g —— 旧算法算{direction}了。")
         if diff > 0:
-            out.append(f"                 脂肪组织不需要蛋白。旧算法多算的 {diff:.0f} g 会逼你去吃")
-            out.append(f"                 高钠高热的餐品（脆汁鸡、安格斯），反而拖慢腹肌进度。")
+            out.append(f"                 脂肪组织不需要蛋白。旧算法多算的 {diff:.0f} g 会推高食量，")
+            out.append(f"                 容易选到钠含量偏高的餐品（如脆汁鸡、安格斯系列）。")
         else:
             out.append(f"                 你偏瘦，按体重算会吃不饱，肌肉有流失风险。")
             out.append(f"                 瘦体重高的人必须按瘦体重算才够。")
@@ -302,9 +302,9 @@ def fmt(args, p):
     out.append(f"  腹肌清晰度     【{grade}】")
     out.append(f"        {note}")
     out.append("")
-    out.append("  这条对麦当劳尤其致命：要把蛋白吃够，就得上脆汁鸡/安格斯")
-    out.append("  （钠 900~1400 mg/份）；要控钠，就只能选玉米杯/牛奶/美式，")
-    out.append("  蛋白又不够。这两个目标在麦当劳餐单上正面冲突。")
+    out.append("  这也是麦当劳餐单上的一组取舍：要把蛋白吃够，往往要选钠含量较高的")
+    out.append("  餐品（如脆汁鸡、安格斯系列，钠 900~1400 mg/份）；要控钠，则多为")
+    out.append("  玉米杯/牛奶/美式，蛋白偏低。两个目标难以同时满足。")
 
     out.append("")
     out.append("【六、必须说清的边界】")

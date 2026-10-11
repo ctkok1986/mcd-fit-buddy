@@ -167,7 +167,7 @@ def render(args, target, items):
         if gap > 5:
             out.append(f"  热量内蛋白上限约 {best['protein']:.0f} g，"
                        f"距目标仍差 {gap:.0f} g。")
-            out.append("  建议：这部分别指望麦当劳，用无糖希腊酸奶/蛋白粉补。")
+            out.append("  建议：这部分麦当劳餐单较难补足，可用无糖希腊酸奶/蛋白粉补充。")
         else:
             out.append(f"  热量内可把蛋白补到 {best['protein']:.0f} g，"
                        f"目标缺口仅剩 {gap:.0f} g，基本达标。")

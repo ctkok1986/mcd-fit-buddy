@@ -16,12 +16,15 @@
 import argparse
 import csv
 import json
+import math
 import os
 import sys
 from itertools import combinations
 
 DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "..", "data", "nutrition.csv")
+COMMON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "..", "data", "common-foods.csv")
 
 # 1 kg 脂肪 ≈ 7700 kcal
 KCAL_PER_KG_FAT = 7700
@@ -121,6 +124,28 @@ def load_items():
             except (ValueError, KeyError, AttributeError):
                 continue
     return items
+
+
+def load_common():
+    """载入常见食物表（非麦当劳）。
+
+    只用于「钠超标时怎么补齐蛋白」的建议 —— 与网页端 demo.html 用的是
+    同一份 data/common-foods.csv，避免两边给的补法不一致。
+    """
+    rows = []
+    with open(COMMON_PATH, encoding="utf-8-sig") as f:
+        for row in csv.DictReader(f):
+            try:
+                rows.append({
+                    "name": row["name"].strip(),
+                    "kcal": float(row["kcal"]),
+                    "protein": float(row["protein_g"]),
+                    "sodium": float(row["sodium_mg"]),
+                    "portion": row["portion"].strip(),
+                })
+            except (ValueError, KeyError, AttributeError):
+                continue
+    return rows
 
 
 def calc_bmr(weight, height, age, sex):
@@ -957,6 +982,7 @@ def main():
             return 1
 
     items = load_items()
+    commons = load_common()
     target = build_target(args)
 
     # 券上下文（可选）：让配餐优先使用临期券
@@ -1020,11 +1046,37 @@ def main():
         print(f"  注：当前只配 {len(solve_keys)} 个餐次，其余餐次由非麦当劳补足，")
         print(f"      故此处只对比{scope}的营养，不作「不可兼得」判定。")
     elif tp["sodium"] > SODIUM_DAILY_CAP and ts["protein"] < target["protein_target"] * 0.95:
-        print(f"  结论：在{scope}上，「热量达标 + 蛋白达标 + 钠达标」三者不可兼得。")
-        print(f"  · 要蛋白 {target['protein_target']:.0f} g，钠会到 {tp['sodium']:.0f} mg 左右")
-        print(f"  · 要控钠 {SODIUM_DAILY_CAP} mg 以内，蛋白只有 {ts['protein']:.0f} g 左右")
-        print("  建议：选定一侧作为主线，另一侧用非麦当劳食物补齐（如无糖希腊酸奶、")
-        print("        水煮鸡胸、蛋白粉），并在方案中如实标注缺口。")
+        # 与网页同一口径：先找一条「钠达标」的餐单
+        # （几档控钠权重各解一次，取钠达标且蛋白最高的一条），
+        # 再给出用非麦当劳食物补齐蛋白的具体数量。
+        comp = None
+        for sw in (4.0, 8.0, 12.0, 20.0, 40.0):
+            pl, _ = build_slot_plan(items, target, solve_keys, known, sodium_weight=sw)
+            t = plan_totals(pl)
+            if t["sodium"] <= SODIUM_DAILY_CAP and (comp is None or t["protein"] > comp["protein"]):
+                comp = t
+        print(f"  在{scope}上，热量 / 蛋白 / 钠 三个目标彼此此消彼长。")
+        if comp:
+            print(f"  · 严格控到钠达标：蛋白 {comp['protein']:.0f} g | 钠 {comp['sodium']:.0f} mg ✅"
+                  f"（热量 {comp['kcal']:.0f} kcal）")
+            gap = target["protein_target"] - comp["protein"]
+            picks = []
+            for nm in ("鸡胸肉", "蛋白粉", "希腊酸奶"):
+                f = next((x for x in commons if x["name"] == nm), None)
+                if not f or not f["protein"]:
+                    continue
+                n = max(1, math.ceil(gap / f["protein"]))
+                picks.append((f, n, n * f["protein"], n * f["sodium"]))
+            print(f"  蛋白缺口 {gap:.0f} g，可用非麦当劳食物补齐（按钠增量最小排序）：")
+            for f, n, add_p, add_na in sorted(picks, key=lambda x: x[3]):
+                print(f"    {f['name']} {f['portion']} × {n}"
+                      f"  → 蛋白 +{add_p:.0f} g，钠 +{add_na:.0f} mg"
+                      f"（补完后钠 {comp['sodium'] + add_na:.0f} mg）")
+            print("  补蛋白一定同时带钠 —— 想更严格，可把其中一餐交给非麦当劳。")
+        else:
+            print(f"  结论：在{scope}上，「热量达标 + 蛋白达标 + 钠达标」三者不可兼得。")
+            print("  建议：选定一侧作为主线，另一侧用非麦当劳食物补齐（如无糖希腊酸奶、")
+            print("        水煮鸡胸、蛋白粉），并在方案中如实标注缺口。")
     print()
     print(f"[数据源] 麦当劳官方营养表 {len(items)} 项｜求解方式：槽位枚举 + 词典序打分择优")
 
