@@ -35,11 +35,31 @@ h1 .hl{color:var(--red)}
 
 /* ── 布局 ── */
 .grid{display:grid;grid-template-columns:340px 1fr;gap:22px;padding:40px 0}
-@media(max-width:900px){.grid{grid-template-columns:1fr}}
+/* 参数面板：sticky 固定，但内容超出视口时**内部滚动**。
+   否则面板会「卡」在半途，滚动时表现为内容错位、底部按钮跑到视野外。 */
+.card.side{height:fit-content;position:sticky;top:20px;
+  max-height:calc(100vh - 40px);overflow-y:auto;overflow-x:hidden;
+  scrollbar-width:thin;scrollbar-color:#3d4650 transparent}
+.card.side::-webkit-scrollbar{width:7px}
+.card.side::-webkit-scrollbar-thumb{background:#3d4650;border-radius:4px}
+.card.side::-webkit-scrollbar-track{background:transparent}
+@media(max-width:900px){
+  .grid{grid-template-columns:1fr}
+  /* 窄屏单列时取消固定，避免与页面滚动打架 */
+  .card.side{position:static;max-height:none;overflow:visible}
+}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
 .card h3{font-size:15px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px}
 .card h3 .bar{width:3px;height:15px;background:var(--red);border-radius:2px}
 .card .hint{font-size:12.5px;color:var(--dim);margin-bottom:16px}
+/* 重算时结果卡轻微闪一下 —— 让「已经更新了」这件事可见 */
+@keyframes cardflash{0%{background:rgba(255,199,44,.13)}100%{background:var(--card)}}
+.card.flash{animation:cardflash .55s ease-out}
+.livetag{font-size:11.5px;color:var(--green);display:inline-flex;align-items:center;
+  gap:5px;margin-left:auto;font-weight:500}
+.livedot{width:6px;height:6px;border-radius:50%;background:var(--green);
+  animation:livepulse 1.8s ease-in-out infinite}
+@keyframes livepulse{0%,100%{opacity:1}50%{opacity:.3}}
 
 /* ── 控件 ── */
 .field{margin-bottom:15px}
@@ -68,12 +88,36 @@ input:focus{outline:none;border-color:var(--red)}
   background:#3d4650;margin-right:6px;vertical-align:middle}
 .meals button.on .dot{background:var(--red)}
 .known{margin-bottom:11px}
-.known .krow{display:flex;align-items:center;gap:8px;margin-bottom:7px}
-.known .krow span{font-size:12.5px;color:var(--dim);min-width:44px}
-.known input{flex:1;font-size:13px;padding:7px 9px}
+.kblk{background:var(--card2);border:1px solid var(--line);border-radius:10px;
+  padding:11px;margin-bottom:9px}
+.kblk .kh{font-size:12.5px;font-weight:700;margin-bottom:8px;display:flex;
+  justify-content:space-between;align-items:center}
+.kblk .kh em{font-style:normal;font-size:11px;color:var(--dim);font-weight:400}
+.kdesc{width:100%;font-size:12.5px;padding:8px 10px;margin-bottom:7px}
+.krow3{display:flex;gap:6px}
+.krow3 input{flex:1;min-width:0;font-size:12.5px;padding:7px 4px;text-align:center}
+.kbtns{display:flex;gap:6px;margin-top:8px}
+.kbtn{flex:1;background:rgba(255,199,44,.14);border:1px solid rgba(255,199,44,.35);
+  color:var(--gold);border-radius:7px;padding:7px 6px;font-size:12.5px;cursor:pointer;
+  font-family:inherit;font-weight:600;transition:.15s}
+.kbtn:hover{background:rgba(255,199,44,.24)}
+.kbtn.clr{background:transparent;border-color:var(--line);color:var(--dim);flex:0 0 62px}
+.kbtn.clr:hover{color:var(--txt);border-color:#3d4650}
+.kmsg{font-size:11.5px;color:var(--dim);margin-top:7px;line-height:1.55}
+.kmatch{font-size:11.5px;color:#8ee6a8;margin-top:7px;line-height:1.7}
+.kmiss{font-size:11.5px;color:var(--orange);margin-top:6px;line-height:1.55}
+.kfoods{font-size:11px;color:#5c6570;margin-top:8px;line-height:1.6;
+  max-height:74px;overflow:auto;border-top:1px dashed var(--line);padding-top:7px}
 .btn{width:100%;background:var(--gold);color:#1a1200;border:none;border-radius:9px;
-  padding:12px;font-size:14.5px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:4px}
+  padding:12px;font-size:14.5px;font-weight:800;cursor:pointer;font-family:inherit;
+  margin-top:4px;transition:background .18s,color .18s}
 .btn:hover{filter:brightness(1.08)}
+.btn:active{transform:translateY(1px)}
+.btn.done{background:var(--green);color:#04210f}
+/* 按钮贴面板底部：面板内部滚动时始终可见，不会被滚出视野 */
+.sidefoot{position:sticky;bottom:0;margin:8px -22px -22px;padding:10px 22px 22px;
+  background:linear-gradient(to top,var(--card) 60%,rgba(23,27,34,0));
+  border-radius:0 0 14px 14px}
 
 /* ── 结果 ── */
 .stack{display:flex;flex-direction:column;gap:18px}
@@ -137,9 +181,9 @@ footer b{color:var(--txt)}
 <div class="grid">
 
   <!-- ── 左：参数 ── -->
-  <div class="card" style="height:fit-content;position:sticky;top:20px">
+  <div class="card side">
     <h3><span class="bar"></span>你的参数</h3>
-    <p class="hint">改任意一项，右侧立即重算</p>
+    <p class="hint">所有参数<b style="color:var(--gold)">实时生效</b>，改完就更新 —— 按钮只是帮你跳到结果</p>
 
     <div class="field">
       <label>性别</label>
@@ -205,32 +249,34 @@ footer b{color:var(--txt)}
       <div class="known" id="known"></div>
     </div>
 
-    <button class="btn" id="run">重新计算</button>
+    <div class="sidefoot">
+      <button class="btn" id="run">重新计算</button>
+    </div>
   </div>
 
   <!-- ── 右：结果 ── -->
   <div class="stack">
 
     <div class="card">
-      <h3><span class="bar"></span>一、你的每日目标</h3>
+      <h3><span class="bar"></span>一、你的每日目标<span class="livetag"><span class="livedot"></span>实时</span></h3>
       <p class="hint">摄入锚定 TDEE，不是锚定 BMR</p>
       <div id="target"></div>
     </div>
 
     <div class="card">
-      <h3><span class="bar"></span>二、餐次方案</h3>
+      <h3><span class="bar"></span>二、餐次方案<span class="livetag"><span class="livedot"></span>实时</span></h3>
       <p class="hint">只配你勾选的餐次，其余餐次作为额度约束扣除</p>
       <div id="plan"></div>
     </div>
 
     <div class="card">
-      <h3><span class="bar"></span>三、麦当劳的结构性矛盾</h3>
+      <h3><span class="bar"></span>三、麦当劳的结构性矛盾<span class="livetag"><span class="livedot"></span>实时</span></h3>
       <p class="hint">同一份餐单，蛋白与钠无法同时达标</p>
       <div id="conflict"></div>
     </div>
 
     <div class="card">
-      <h3><span class="bar"></span>四、离「看得见腹肌」还有多远</h3>
+      <h3><span class="bar"></span>四、离「看得见腹肌」还有多远<span class="livetag"><span class="livedot"></span>实时</span></h3>
       <p class="hint">高体脂时腹肌被脂肪盖住，低体脂时可能被水盖住</p>
       <div id="abs"></div>
     </div>
@@ -427,6 +473,89 @@ const RAW = [
 const ITEMS = RAW.map(r => ({
   name: r[0], kcal: r[1], protein: r[2], fat: r[3], carb: r[4], sodium: r[5]
 }));
+
+/* ══════════════════════════════════════════════════════════
+   常见食物表（非麦当劳餐品），用于「描述自动估算营养」
+   数据源：data/common-foods.csv（每份为常见家用份量）
+   ══════════════════════════════════════════════════════════ */
+const COMMON = [
+{name:"包子",keys:["包子"],kcal:225.0,protein:6.5,fat:6.5,carb:34.0,sodium:325.0,portion:"1个(约100g)"},
+{name:"肉包",keys:["肉包","肉包子","猪肉包","大肉包"],kcal:250.0,protein:8.0,fat:8.0,carb:35.0,sodium:400.0,portion:"1个(约100g)"},
+{name:"素包",keys:["素包","素包子","菜包","香菇素菜包"],kcal:200.0,protein:5.0,fat:5.0,carb:33.0,sodium:250.0,portion:"1个(约100g)"},
+{name:"小笼包",keys:["小笼包","汤包","灌汤包"],kcal:400.0,protein:16.0,fat:16.0,carb:46.0,sodium:700.0,portion:"1笼6个"},
+{name:"馒头",keys:["馒头","馍","白馒头"],kcal:223.0,protein:7.0,fat:1.1,carb:47.0,sodium:165.0,portion:"1个(100g)"},
+{name:"花卷",keys:["花卷"],kcal:200.0,protein:6.0,fat:3.0,carb:38.0,sodium:200.0,portion:"1个(80g)"},
+{name:"油条",keys:["油条","油炸鬼"],kcal:285.0,protein:4.0,fat:17.0,carb:25.0,sodium:300.0,portion:"1根(50g)"},
+{name:"烧饼",keys:["烧饼"],kcal:260.0,protein:7.0,fat:8.0,carb:40.0,sodium:400.0,portion:"1个(80g)"},
+{name:"葱油饼",keys:["葱油饼"],kcal:400.0,protein:8.0,fat:20.0,carb:47.0,sodium:600.0,portion:"1个(130g)"},
+{name:"煎饼果子",keys:["煎饼果子","煎饼","杂粮煎饼"],kcal:450.0,protein:14.0,fat:18.0,carb:58.0,sodium:900.0,portion:"1个(200g)"},
+{name:"手抓饼",keys:["手抓饼"],kcal:350.0,protein:8.0,fat:20.0,carb:35.0,sodium:600.0,portion:"1个(120g)"},
+{name:"鸡蛋饼",keys:["鸡蛋饼","蛋饼"],kcal:270.0,protein:12.0,fat:10.0,carb:32.0,sodium:450.0,portion:"1份(120g)"},
+{name:"萝卜糕",keys:["萝卜糕"],kcal:355.0,protein:5.0,fat:18.0,carb:42.0,sodium:700.0,portion:"2片(115g)"},
+{name:"韭菜盒子",keys:["韭菜盒子","韭菜盒"],kcal:300.0,protein:9.0,fat:14.0,carb:35.0,sodium:600.0,portion:"1个(140g)"},
+{name:"饭团",keys:["饭团","飯糰","粢饭团"],kcal:670.0,protein:15.0,fat:24.0,carb:95.0,sodium:1200.0,portion:"1个(200g)"},
+{name:"水煎包",keys:["水煎包"],kcal:210.0,protein:6.0,fat:8.0,carb:28.0,sodium:400.0,portion:"1个(90g)"},
+{name:"烧麦",keys:["烧麦","烧卖"],kcal:80.0,protein:3.0,fat:3.0,carb:10.0,sodium:150.0,portion:"1个(40g)"},
+{name:"馄饨",keys:["馄饨","云吞","抄手"],kcal:300.0,protein:14.0,fat:10.0,carb:38.0,sodium:900.0,portion:"1碗(300g)"},
+{name:"皮蛋瘦肉粥",keys:["皮蛋瘦肉粥","瘦肉粥"],kcal:180.0,protein:8.0,fat:5.0,carb:25.0,sodium:800.0,portion:"1碗(350g)"},
+{name:"白粥",keys:["白粥","稀饭","大米粥","粥"],kcal:90.0,protein:2.0,fat:0.3,carb:20.0,sodium:10.0,portion:"1碗(300g)"},
+{name:"小米粥",keys:["小米粥"],kcal:110.0,protein:3.0,fat:1.0,carb:23.0,sodium:10.0,portion:"1碗(300g)"},
+{name:"八宝粥",keys:["八宝粥","杂粮粥"],kcal:400.0,protein:16.0,fat:8.0,carb:66.0,sodium:50.0,portion:"1碗(300g)"},
+{name:"南瓜粥",keys:["南瓜粥"],kcal:130.0,protein:3.0,fat:2.0,carb:26.0,sodium:20.0,portion:"1碗(300g)"},
+{name:"豆浆",keys:["豆浆","豆奶","无糖豆浆"],kcal:125.0,protein:11.0,fat:6.0,carb:4.0,sodium:15.0,portion:"1杯(360ml)"},
+{name:"甜豆浆",keys:["甜豆浆","加糖豆浆"],kcal:190.0,protein:11.0,fat:6.0,carb:25.0,sodium:15.0,portion:"1杯(360ml)"},
+{name:"牛奶",keys:["牛奶","鲜奶","纯牛奶"],kcal:130.0,protein:8.0,fat:7.0,carb:10.0,sodium:100.0,portion:"1杯(250ml)"},
+{name:"酸奶",keys:["酸奶","优格"],kcal:120.0,protein:6.0,fat:4.0,carb:15.0,sodium:80.0,portion:"1杯(150g)"},
+{name:"希腊酸奶",keys:["希腊酸奶","希腊式酸奶"],kcal:130.0,protein:15.0,fat:3.0,carb:10.0,sodium:60.0,portion:"1杯(150g)"},
+{name:"鸡蛋",keys:["鸡蛋","水煮蛋","煮鸡蛋","白煮蛋"],kcal:70.0,protein:6.5,fat:4.3,carb:1.2,sodium:66.0,portion:"1个(50g)"},
+{name:"茶叶蛋",keys:["茶叶蛋","卤蛋"],kcal:75.0,protein:6.5,fat:4.5,carb:1.5,sodium:350.0,portion:"1个(50g)"},
+{name:"煎蛋",keys:["煎蛋","荷包蛋","太阳蛋"],kcal:100.0,protein:7.0,fat:7.5,carb:1.0,sodium:200.0,portion:"1个(55g)"},
+{name:"炒蛋",keys:["炒蛋","炒鸡蛋","scrambled"],kcal:140.0,protein:9.0,fat:11.0,carb:1.5,sodium:250.0,portion:"1份(2个)"},
+{name:"白米饭",keys:["白米饭","米饭","白饭","大米饭"],kcal:200.0,protein:4.0,fat:0.5,carb:44.0,sodium:5.0,portion:"1碗(150g)"},
+{name:"糙米饭",keys:["糙米饭","杂粮饭"],kcal:215.0,protein:5.0,fat:1.5,carb:45.0,sodium:5.0,portion:"1碗(150g)"},
+{name:"蛋炒饭",keys:["蛋炒饭","炒饭"],kcal:550.0,protein:16.0,fat:18.0,carb:76.0,sodium:1000.0,portion:"1份(350g)"},
+{name:"牛肉面",keys:["牛肉面","红烧牛肉面"],kcal:550.0,protein:25.0,fat:15.0,carb:75.0,sodium:1500.0,portion:"1碗(500g)"},
+{name:"兰州拉面",keys:["兰州拉面","拉面","牛肉拉面"],kcal:500.0,protein:22.0,fat:12.0,carb:72.0,sodium:1400.0,portion:"1碗(500g)"},
+{name:"拌面",keys:["拌面","干拌面","葱油拌面"],kcal:450.0,protein:14.0,fat:12.0,carb:70.0,sodium:1200.0,portion:"1碗(300g)"},
+{name:"阳春面",keys:["阳春面","素面","清汤面"],kcal:350.0,protein:10.0,fat:6.0,carb:62.0,sodium:1000.0,portion:"1碗(400g)"},
+{name:"炸酱面",keys:["炸酱面"],kcal:600.0,protein:22.0,fat:20.0,carb:80.0,sodium:1500.0,portion:"1碗(400g)"},
+{name:"面条",keys:["面条","面","汤面"],kcal:400.0,protein:12.0,fat:8.0,carb:68.0,sodium:1200.0,portion:"1碗(400g)"},
+{name:"炒面",keys:["炒面"],kcal:600.0,protein:18.0,fat:22.0,carb:80.0,sodium:1400.0,portion:"1份(350g)"},
+{name:"米粉",keys:["米粉","米线","粉"],kcal:450.0,protein:14.0,fat:10.0,carb:74.0,sodium:1300.0,portion:"1碗(400g)"},
+{name:"汉堡",keys:["汉堡","其他汉堡"],kcal:500.0,protein:22.0,fat:24.0,carb:50.0,sodium:1000.0,portion:"1个"},
+{name:"炸鸡",keys:["炸鸡","炸鸡腿","炸鸡翅"],kcal:300.0,protein:20.0,fat:18.0,carb:12.0,sodium:700.0,portion:"1份(150g)"},
+{name:"三明治",keys:["三明治","sandwich"],kcal:300.0,protein:14.0,fat:12.0,carb:34.0,sodium:700.0,portion:"1个"},
+{name:"水饺",keys:["水饺","饺子"],kcal:400.0,protein:16.0,fat:12.0,carb:55.0,sodium:800.0,portion:"10个"},
+{name:"蒸饺",keys:["蒸饺"],kcal:320.0,protein:12.0,fat:10.0,carb:44.0,sodium:600.0,portion:"8个"},
+{name:"盒饭",keys:["盒饭","快餐","便当","盖浇饭"],kcal:800.0,protein:30.0,fat:25.0,carb:105.0,sodium:1800.0,portion:"1份(600g)"},
+{name:"黄焖鸡米饭",keys:["黄焖鸡","黄焖鸡米饭"],kcal:750.0,protein:35.0,fat:25.0,carb:95.0,sodium:1600.0,portion:"1份(600g)"},
+{name:"麻辣烫",keys:["麻辣烫","冒菜"],kcal:600.0,protein:20.0,fat:25.0,carb:70.0,sodium:2000.0,portion:"1份(600g)"},
+{name:"沙拉",keys:["沙拉","蔬菜沙拉","轻食"],kcal:250.0,protein:15.0,fat:12.0,carb:20.0,sodium:500.0,portion:"1份(300g)"},
+{name:"鸡胸肉",keys:["鸡胸肉","鸡胸","水煮鸡胸"],kcal:165.0,protein:31.0,fat:3.6,carb:0.0,sodium:74.0,portion:"100g"},
+{name:"鸡腿肉",keys:["鸡腿","鸡腿肉"],kcal:220.0,protein:26.0,fat:12.0,carb:0.0,sodium:180.0,portion:"100g"},
+{name:"牛肉",keys:["牛肉","瘦牛肉"],kcal:180.0,protein:26.0,fat:8.0,carb:0.0,sodium:60.0,portion:"100g"},
+{name:"红烧肉",keys:["红烧肉","五花肉"],kcal:500.0,protein:8.0,fat:50.0,carb:3.0,sodium:800.0,portion:"100g"},
+{name:"清蒸鱼",keys:["清蒸鱼","蒸鱼","鱼肉"],kcal:120.0,protein:20.0,fat:4.0,carb:0.0,sodium:400.0,portion:"100g"},
+{name:"番茄炒蛋",keys:["番茄炒蛋","西红柿炒鸡蛋"],kcal:220.0,protein:10.0,fat:15.0,carb:12.0,sodium:700.0,portion:"1份(250g)"},
+{name:"炒青菜",keys:["炒青菜","青菜","时蔬"],kcal:150.0,protein:4.0,fat:10.0,carb:10.0,sodium:600.0,portion:"1份(250g)"},
+{name:"炒土豆丝",keys:["土豆丝","炒土豆丝"],kcal:230.0,protein:4.0,fat:12.0,carb:28.0,sodium:600.0,portion:"1份(250g)"},
+{name:"麻婆豆腐",keys:["麻婆豆腐","豆腐"],kcal:280.0,protein:15.0,fat:18.0,carb:12.0,sodium:1000.0,portion:"1份(250g)"},
+{name:"玉米",keys:["玉米","水煮玉米","甜玉米"],kcal:120.0,protein:4.0,fat:1.0,carb:26.0,sodium:5.0,portion:"1根(200g)"},
+{name:"红薯",keys:["红薯","地瓜","番薯"],kcal:150.0,protein:2.0,fat:0.3,carb:35.0,sodium:20.0,portion:"1个(150g)"},
+{name:"土豆",keys:["土豆","马铃薯"],kcal:130.0,protein:3.0,fat:0.2,carb:30.0,sodium:10.0,portion:"1个(150g)"},
+{name:"香蕉",keys:["香蕉"],kcal:105.0,protein:1.3,fat:0.4,carb:27.0,sodium:1.0,portion:"1根(120g)"},
+{name:"苹果",keys:["苹果"],kcal:104.0,protein:0.5,fat:0.3,carb:28.0,sodium:2.0,portion:"1个(200g)"},
+{name:"橙子",keys:["橙子","橙"],kcal:60.0,protein:1.2,fat:0.2,carb:15.0,sodium:1.0,portion:"1个(180g)"},
+{name:"坚果",keys:["坚果","混合坚果","巴旦木","杏仁"],kcal:180.0,protein:5.0,fat:16.0,carb:6.0,sodium:100.0,portion:"1把(30g)"},
+{name:"蛋白粉",keys:["蛋白粉","乳清蛋白","whey"],kcal:115.0,protein:24.0,fat:1.5,carb:3.0,sodium:100.0,portion:"1勺(30g)"},
+{name:"可乐",keys:["可乐","可口可乐","百事"],kcal:140.0,protein:0.0,fat:0.0,carb:35.0,sodium:10.0,portion:"1罐(330ml)"},
+{name:"无糖可乐",keys:["无糖可乐","零度可乐","零卡可乐"],kcal:0.0,protein:0.0,fat:0.0,carb:0.0,sodium:10.0,portion:"1罐(330ml)"},
+{name:"奶茶",keys:["奶茶","珍珠奶茶"],kcal:400.0,protein:5.0,fat:12.0,carb:65.0,sodium:150.0,portion:"1杯(500ml)"},
+{name:"美式咖啡",keys:["美式","美式咖啡","黑咖啡"],kcal:5.0,protein:0.3,fat:0.0,carb:1.0,sodium:5.0,portion:"1杯(350ml)"},
+{name:"拿铁",keys:["拿铁","咖啡拿铁","冰拿铁"],kcal:150.0,protein:8.0,fat:8.0,carb:12.0,sodium:100.0,portion:"1杯(350ml)"},
+{name:"啤酒",keys:["啤酒"],kcal:210.0,protein:2.0,fat:0.0,carb:17.0,sodium:15.0,portion:"1瓶(500ml)"},
+{name:"果汁",keys:["果汁","鲜榨果汁","橙汁"],kcal:160.0,protein:1.0,fat:0.3,carb:39.0,sodium:5.0,portion:"1杯(300ml)"}
+];
 
 /* ── 分类白名单：与 Python 引擎逐项一致 ──
    曾出现「柠萌风味薄皮焦香V翅」因含「柠」被误判为饮品、
@@ -663,6 +792,164 @@ function waterIndex(na,w){
     note="水潴留严重，腹肌在视觉上基本被抹平。此时照镜子会严重低估你的真实进度。"; }
   return {liters,grade,note,pct};
 }
+
+/* ══════════════════════════════════════════════════════════
+   「描述 → 营养」估算器
+   输入如「两个包子一杯豆浆」，输出热量/蛋白/钠。
+   设计原则：**不猜**。认不出的词原样列出，不硬算；
+   匹配时取最长别名（避免「甜豆浆」被「豆浆」截胡，
+   也避免「八宝粥」的「八」被当成数量）。
+   ══════════════════════════════════════════════════════════ */
+const CN_DIGIT = {"零":0,"一":1,"二":2,"两":2,"三":3,"四":4,"五":5,
+                  "六":6,"七":7,"八":8,"九":9};
+const NUM_CHARS = "0123456789一二两三四五六七八九十半零点";
+const UNIT_CHARS = "个杯碗份根片勺瓶罐块只条袋盘斤笼盒串桶kgml毫升克";
+
+/** 从份量说明里取出基准量（克/毫升）。
+    "100g"→100 ; "1个(100g)"→100 ; "1杯(360ml)"→360 ; "1个(150g)"→150。
+    取不到（如 "10个"、"1笼6个"）返回 null，表示该食物只能按「份」计。 */
+function baseAmount(portion){
+  let m = portion.match(/[(（](\d+(?:\.\d+)?)\s*(?:g|ml|克|毫升)/i);
+  if (m) return parseFloat(m[1]);
+  m = portion.match(/^(\d+(?:\.\d+)?)\s*(?:g|ml|克|毫升)/i);
+  if (m) return parseFloat(m[1]);
+  return null;
+}
+
+function cnToNum(t){
+  if (t === "半") return 0.5;
+  if (t === "十") return 10;
+  if (CN_DIGIT[t] !== undefined) return CN_DIGIT[t];
+  let m = t.match(/^十([一二三四五六七八九])$/);
+  if (m) return 10 + CN_DIGIT[m[1]];
+  m = t.match(/^([一二三四五六七八九])十$/);
+  if (m) return CN_DIGIT[m[1]] * 10;
+  m = t.match(/^([一二三四五六七八九])十([一二三四五六七八九])$/);
+  if (m) return CN_DIGIT[m[1]] * 10 + CN_DIGIT[m[2]];
+  return null;
+}
+
+/** 找出文本里的所有食物命中，取最长别名并去掉重叠。 */
+function findFoods(text){
+  const raw = [];
+  for (const f of COMMON){
+    for (const k of f.keys){
+      let i = -1;
+      while ((i = text.indexOf(k, i + 1)) !== -1){
+        raw.push({start: i, end: i + k.length, food: f, key: k});
+      }
+    }
+  }
+  // 起点升序；同起点取更长的（「甜豆浆」胜过「豆浆」）
+  raw.sort((a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
+  const picked = [];
+  for (const h of raw){
+    if (picked.some(p => h.start < p.end && h.end > p.start)) continue;  // 重叠丢弃
+    picked.push(h);
+  }
+  picked.sort((a, b) => a.start - b.start);
+  return picked;
+}
+
+/** 收集数量短语（数字 + 可选单位），并剔除与食物名重叠的
+    —— 否则「八宝粥」的「八」会被当成数量。 */
+function collectQtys(text, foodSpans){
+  const out = [];
+  let i = 0;
+  while (i < text.length){
+    if (NUM_CHARS.includes(text[i])){
+      let j = i;
+      while (j < text.length && (NUM_CHARS.includes(text[j]) || UNIT_CHARS.includes(text[j]))) j++;
+      const span = {start: i, end: j, text: text.slice(i, j)};
+      const overlap = foodSpans.some(f => span.start < f.end && span.end > f.start);
+      if (!overlap) out.push(span);
+      i = j;
+    } else i++;
+  }
+  return out;
+}
+
+/** 数量短语 → 份数。识别克/毫升时按该食物的基准量换算，
+    否则「鸡胸肉100克」会被算成 100 份。 */
+function qtyValue(q, portion){
+  const t = q.text;
+  const wu = t.match(/(\d+(?:\.\d+)?)\s*(kg|公斤|g|克|ml|毫升)/i);
+  if (wu){
+    let amt = parseFloat(wu[1]);
+    const u = wu[2].toLowerCase();
+    if (u === "kg" || u === "公斤") amt *= 1000;
+    const base = baseAmount(portion);
+    if (base && base > 0) return amt / base;
+    return 1;
+  }
+  const ar = t.match(/(\d+(?:\.\d+)?)/);
+  if (ar) return parseFloat(ar[1]);
+  const cn = t.match(/[一二两三四五六七八九十半]+/);
+  if (cn){
+    const v = cnToNum(cn[0]);
+    if (v !== null && v > 0) return v;
+  }
+  return 1;
+}
+
+const isQtyOnly = seg => seg.replace(
+  new RegExp("[" + NUM_CHARS + UNIT_CHARS + "]", "g"), "").trim() === "";
+
+/** 主入口：解析一句描述，返回 {hits, missed, tot}。
+    支持「两个包子一杯豆浆」这种无分隔连写：
+    按食物出现位置定位，再把数量短语就近配对给最近的食物。 */
+function estimateMeal(text){
+  text = String(text);
+  const foods = findFoods(text);
+  if (!foods.length){
+    const t = text.trim();
+    return {hits: [], missed: t ? [t] : [], tot: {kcal: 0, protein: 0, sodium: 0}};
+  }
+  const qtys = collectQtys(text, foods);
+
+  // 就近配对：距离升序贪心，每个数量短语只归属一个食物
+  const pairs = [];
+  foods.forEach((f, fi) => {
+    qtys.forEach((q, qi) => {
+      const dist = (q.end <= f.start) ? (f.start - q.end)
+                 : (f.end <= q.start) ? (q.start - f.end) : 0;
+      pairs.push({fi, qi, dist});
+    });
+  });
+  pairs.sort((a, b) => a.dist - b.dist);
+  const usedF = new Set(), usedQ = new Set(), assign = new Map();
+  for (const p of pairs){
+    if (usedF.has(p.fi) || usedQ.has(p.qi)) continue;
+    usedF.add(p.fi); usedQ.add(p.qi);
+    assign.set(p.fi, qtys[p.qi]);
+  }
+
+  const outHits = foods.map((f, fi) => {
+    const q = assign.get(fi);
+    return {name: f.food.name, portion: f.food.portion,
+            qty: q ? qtyValue(q, f.food.portion) : 1,
+            kcal: f.food.kcal, protein: f.food.protein, sodium: f.food.sodium};
+  });
+
+  // 未被食物覆盖、且不只是数量词的片段 → 如实列为「未识别」
+  const missed = [];
+  let pos = 0;
+  for (const f of foods){
+    const seg = text.slice(pos, f.start).trim();
+    if (seg && !isQtyOnly(seg)) missed.push(seg);
+    pos = f.end;
+  }
+  const tail = text.slice(pos).trim();
+  if (tail && !isQtyOnly(tail)) missed.push(tail);
+
+  const tot = outHits.reduce((a, h) => ({
+    kcal: a.kcal + h.kcal * h.qty,
+    protein: a.protein + h.protein * h.qty,
+    sodium: a.sodium + h.sodium * h.qty
+  }), {kcal: 0, protein: 0, sodium: 0});
+
+  return {hits: outHits, missed, tot};
+}
 /*__ENGINE_END__*/
 
 /* ══════════════════════════════════════════════════════════
@@ -708,38 +995,161 @@ $("meals").addEventListener("click", e=>{
   btn.classList.toggle("on");
   render();
 });
-$("run").addEventListener("click", render);
+/* 结果卡闪一下，让「刚刚更新过」这件事看得见 */
+function flashCards(){
+  document.querySelectorAll(".stack > .card").forEach(c => {
+    c.classList.remove("flash");
+    void c.offsetWidth;          // 强制重排，以便重启动画
+    c.classList.add("flash");
+  });
+}
+
+$("run").addEventListener("click", () => {
+  render();
+  flashCards();
+  // 所有参数本来就是实时算的，点按钮时结果早已是最新 ——
+  // 所以这里给两件看得见的事：滚动到结果区 + 按钮变成完成态。
+  const stack = document.querySelector(".stack");
+  if (stack && window.innerWidth <= 900){
+    stack.scrollIntoView({behavior: "smooth", block: "start"});
+  }
+  const b = $("run");
+  b.textContent = "✓ 已是最新方案";
+  b.classList.add("done");
+  clearTimeout(b._t);
+  b._t = setTimeout(() => {
+    b.textContent = "重新计算";
+    b.classList.remove("done");
+  }, 1500);
+});
+
+/* ── 已知餐次输入区 ──
+   关键修复：只在「哪些餐次在麦当劳吃」发生变化时才重建 DOM。
+   旧实现每次重算都重建输入框，导致输入过程中光标被弹掉。 */
+let knownSig = "";
+const knownMsgs = {};
+
+function setMsg(k, content, kind){
+  knownMsgs[k] = content ? {content, kind} : null;
+  applyMsg(k);
+}
+
+function applyMsg(k){
+  const el = document.querySelector('[data-msg="' + k + '"]');
+  if (!el) return;
+  const m = knownMsgs[k];
+  if (!m){ el.innerHTML = ""; return; }
+  if (m.kind === "warn"){
+    el.innerHTML = '<div class="kmiss">⚠️ ' + m.content + '</div>';
+    return;
+  }
+  const r = m.content;
+  let h = '<div class="kmatch"><b>估算明细</b><br>'
+    + r.hits.map(x => '· ' + x.name + (x.qty !== 1 ? ' ×' + x.qty : '')
+        + '（' + x.portion + '）→ ' + (x.kcal * x.qty).toFixed(0) + ' kcal'
+        + '｜蛋白 ' + (x.protein * x.qty).toFixed(0) + 'g'
+        + '｜钠 ' + (x.sodium * x.qty).toFixed(0) + 'mg').join('<br>')
+    + '</div>';
+  if (r.missed.length)
+    h += '<div class="kmiss">未识别：' + r.missed.join('、') + '（未计入合计）</div>';
+  h += '<div class="kmsg">⚠️ 参考估算，实际随份量与做法浮动，请按你的情况校正。</div>';
+  el.innerHTML = h;
+}
 
 function renderKnownInputs(){
   const box = $("known");
-  const others = ["breakfast","lunch","dinner"].filter(k=>!state.solve.has(k));
+  const others = ["breakfast","lunch","dinner"].filter(k => !state.solve.has(k));
+  const sig = others.join(",");
+  if (sig === knownSig) return;      // 结构未变 → 不重建，保住输入框与光标
+  knownSig = sig;
+
   if (!others.length){ box.innerHTML = ""; return; }
-  box.innerHTML = "<div style='font-size:12px;color:#5c6570;margin-bottom:7px'>"
-    + "其余餐次（作为额度约束）</div>"
-    + others.map(k=>{
-      const d = state.known[k] || {kcal:0,protein:0,sodium:0};
-      return `<div class="krow"><span>${MEAL_SLOTS[k].label}</span>
-        <input type="number" data-k="${k}" data-f="kcal" placeholder="热量 kcal" value="${d.kcal||""}">
-        <input type="number" data-k="${k}" data-f="protein" placeholder="蛋白 g" value="${d.protein||""}">
-        <input type="number" data-k="${k}" data-f="sodium" placeholder="钠 mg" value="${d.sodium||""}">
-      </div>`;
-    }).join("");
-  box.querySelectorAll("input").forEach(inp=>{
-    inp.addEventListener("input", ()=>{
-      const k = inp.dataset.k, f = inp.dataset.f;
-      state.known[k] = state.known[k] || {kcal:0,protein:0,sodium:0};
+  box.innerHTML = '<div style="font-size:12px;color:#5c6570;margin-bottom:7px">'
+    + '其余餐次（作为额度约束）</div>'
+    + others.map(k => {
+      const d = state.known[k] || {kcal:0, protein:0, sodium:0};
+      return '<div class="kblk" data-k="' + k + '">'
+        + '<div class="kh">' + MEAL_SLOTS[k].label + ' <em>不配麦当劳</em></div>'
+        + '<input class="kdesc" data-f="desc" placeholder="描述吃了什么，如：两个包子一杯豆浆">'
+        + '<div class="krow3">'
+        + '<input type="number" data-f="kcal" placeholder="热量" value="' + (d.kcal || "") + '">'
+        + '<input type="number" data-f="protein" placeholder="蛋白" value="' + (d.protein || "") + '">'
+        + '<input type="number" data-f="sodium" placeholder="钠" value="' + (d.sodium || "") + '">'
+        + '</div>'
+        + '<div class="kbtns">'
+        + '<button class="kbtn" data-act="est">⚡ 自动估算</button>'
+        + '<button class="kbtn clr" data-act="clr">清空</button>'
+        + '</div>'
+        + '<div data-msg="' + k + '"></div>'
+        + '</div>';
+    }).join("")
+    + '<div class="kfoods">支持的食物（' + COMMON.length + ' 项）：'
+    + COMMON.map(f => f.name).join('、') + '</div>';
+
+  // 数字输入：只更新状态 + 防抖重算，绝不重建 DOM
+  box.querySelectorAll("input[data-f]").forEach(inp => {
+    if (inp.dataset.f === "desc") return;
+    inp.addEventListener("input", () => {
+      const blk = inp.closest(".kblk"), k = blk.dataset.k, f = inp.dataset.f;
+      state.known[k] = state.known[k] || {kcal:0, protein:0, sodium:0};
       const v = parseFloat(inp.value);
       state.known[k][f] = (isNaN(v) || v < 0) ? 0 : v;
-      render();
+      scheduleRender();
     });
   });
+
+  box.querySelectorAll("button[data-act]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const blk = btn.closest(".kblk"), k = blk.dataset.k;
+      if (btn.dataset.act === "clr"){
+        state.known[k] = {kcal:0, protein:0, sodium:0};
+        blk.querySelectorAll("input").forEach(i => { i.value = ""; });
+        setMsg(k, null);
+        renderResults();
+        return;
+      }
+      const desc = blk.querySelector('[data-f="desc"]').value.trim();
+      if (!desc){
+        setMsg(k, "请先描述吃了什么，例如「两个包子一杯豆浆」", "warn");
+        return;
+      }
+      const r = estimateMeal(desc);
+      if (!r.hits.length){
+        setMsg(k, "没认出任何食物，换个说法试试——下方「支持的食物」里有的都能认", "warn");
+        return;
+      }
+      state.known[k] = {
+        kcal: Math.round(r.tot.kcal),
+        protein: Math.round(r.tot.protein),
+        sodium: Math.round(r.tot.sodium)
+      };
+      blk.querySelector('[data-f="kcal"]').value = state.known[k].kcal;
+      blk.querySelector('[data-f="protein"]').value = state.known[k].protein;
+      blk.querySelector('[data-f="sodium"]').value = state.known[k].sodium;
+      setMsg(k, r, "ok");
+      renderResults();
+    });
+  });
+
+  Object.keys(knownMsgs).forEach(applyMsg);    // 重建后恢复已有提示
 }
 
 function chip(ok, okTxt, badTxt){ return `<span class="chip ${ok?'ok':'bad'}">${ok?okTxt:badTxt}</span>`; }
 
+/* 防抖：输入数字时不必每敲一个字符就算一次。
+   注意 render() 内部有结构签名保护，重复调用不会重建输入框。 */
+let renderTimer = null;
+function scheduleRender(){
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(render, 260);
+}
+
 function render(){
   renderKnownInputs();
+  renderResults();
+}
 
+function renderResults(){
   const p = {sex:state.sex, weight:state.weight, height:state.height, age:state.age,
              activity:state.activity, bodyfat:state.bodyfat||null,
              bmr:state.bmr, goal:state.goal};
@@ -940,6 +1350,7 @@ function render(){
         有人天生六块、有人非对称四块或八块，这一点练不出来也吃不出来。
         本工具做的是让已有的腹肌「看得见」：把覆盖它的脂肪减掉、把盖住它的水分排掉。</div>`;
   }
+  flashCards();     // 重算后让结果卡闪一下，让「已经更新」看得见
 }
 
 render();

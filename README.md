@@ -544,12 +544,15 @@ python tools/verify_demo.py
 ├── data/nutrition.csv              # 158 项营养数据（官方接口快照）
 ├── data/channel-snapshot.sample.json  # 渠道快照样例（真实抓取）
 ├── data/coupon-snapshot.sample.json   # 券快照样例（真实抓取）
+├── data/common-foods.csv           # 76 项常见食物（用于描述自动估算）
 ├── references/mcp-tools.md         # MCP 工具速查
 ├── examples/live-run-2026-10-10.md # 真实运行记录
 ├── demo.html                       # 🎨 可视化演示页（可直接双击打开，无外部依赖）
 ├── demo.template.html              # 演示页模板（数据由 tools/build_demo.py 注入）
 ├── tools/build_demo.py             # 从 nutrition.csv 生成 demo.html
 ├── tools/verify_demo.py            # 网页引擎 ↔ Python 引擎 对拍校验
+├── tools/check_demo.py             # 页面静态检查（id 引用/占位符/关键元素）
+├── tools/test_estimator.py         # 「描述→营养」估算器测试（17 项）
 ├── README.md                       # 本文件
 ├── MCP_INTEGRATION.md              # MCP 接入与调用流程
 ├── mcp-config.example.json         # 脱敏配置（仅环境变量占位符）

@@ -16,6 +16,7 @@ import os
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 CSV_PATH = os.path.join(ROOT, "data", "nutrition.csv")
+COMMON_PATH = os.path.join(ROOT, "data", "common-foods.csv")
 TPL_PATH = os.path.join(ROOT, "demo.template.html")
 OUT_PATH = os.path.join(ROOT, "demo.html")
 
@@ -39,6 +40,30 @@ def load_rows():
     return rows
 
 
+def load_common():
+    """读取常见食物表（非麦当劳餐品），用于"描述自动估算营养"。"""
+    rows = []
+    with open(COMMON_PATH, encoding="utf-8-sig") as f:
+        for row in csv.DictReader(f):
+            try:
+                keys = [k.strip() for k in row["keys"].split("|") if k.strip()]
+                if row["name"].strip() not in keys:
+                    keys.insert(0, row["name"].strip())
+                rows.append({
+                    "name": row["name"].strip(),
+                    "keys": keys,
+                    "kcal": round(float(row["kcal"]), 1),
+                    "protein": round(float(row["protein_g"]), 1),
+                    "fat": round(float(row["fat_g"]), 1),
+                    "carb": round(float(row["carb_g"]), 1),
+                    "sodium": round(float(row["sodium_mg"]), 1),
+                    "portion": row["portion"].strip(),
+                })
+            except (ValueError, KeyError, AttributeError):
+                continue
+    return rows
+
+
 def render_data(rows):
     """紧凑 JS 数组字面量：[名称, 热量, 蛋白, 脂肪, 碳水, 钠]。"""
     lines = []
@@ -48,19 +73,36 @@ def render_data(rows):
     return "[\n" + ",\n".join(lines) + "\n]"
 
 
+def render_common(rows):
+    """常见食物 → JS 对象数组（含别名与份量说明）。"""
+    out = []
+    for r in rows:
+        keys = ",".join(json.dumps(k, ensure_ascii=False) for k in r["keys"])
+        out.append(
+            "{" + f"name:{json.dumps(r['name'], ensure_ascii=False)}"
+            + f",keys:[{keys}]"
+            + f",kcal:{r['kcal']!r},protein:{r['protein']!r}"
+            + f",fat:{r['fat']!r},carb:{r['carb']!r},sodium:{r['sodium']!r}"
+            + f",portion:{json.dumps(r['portion'], ensure_ascii=False)}" + "}")
+    return "[\n" + ",\n".join(out) + "\n]"
+
+
 def main():
     rows = load_rows()
+    common = load_common()
     tpl = open(TPL_PATH, encoding="utf-8").read()
-    for token in ("__NUTRITION_DATA__", "__ITEM_COUNT__"):
+    for token in ("__NUTRITION_DATA__", "__ITEM_COUNT__", "__COMMON_FOODS__"):
         if token not in tpl:
             raise SystemExit(f"模板缺少占位符 {token}")
     html = (tpl
             .replace("__NUTRITION_DATA__", render_data(rows))
+            .replace("__COMMON_FOODS__", render_common(common))
             .replace("__ITEM_COUNT__", str(len(rows))))
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"已生成 {os.path.relpath(OUT_PATH, ROOT)}")
-    print(f"  营养数据 {len(rows)} 项")
+    print(f"  麦当劳营养数据 {len(rows)} 项")
+    print(f"  常见食物数据   {len(common)} 项")
     print(f"  文件大小 {len(html):,} 字节")
 
 
