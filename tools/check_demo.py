@@ -9,6 +9,8 @@
   2. HTML 里声明的 id 是否有重复
   3. 模板占位符是否都已替换
   4. ENGINE 标记是否存在（对拍脚本依赖它）
+  5. 关键交互元素是否齐全
+  6. 是否有指向源码文件的相对链接（Pages 上 .md/.py 会直出源码，必须用绝对地址）
 
 用法：python tools/check_demo.py
 """
@@ -75,6 +77,22 @@ def main():
             problems.append(f"缺少关键元素 {need}")
     if not any("关键元素" in p for p in problems):
         print("  ✅ 关键交互元素齐全")
+
+    # ── 6. 不允许指向「源码文件」的相对链接 ──
+    # demo 部署在 GitHub Pages，而 Pages 的站点根 = 仓库根。
+    # 于是 href="SKILL.md" 会命中 .../SKILL.md，Pages 直接以 text/markdown
+    # 返回**源码**（31 KB 纯文本）—— 没有渲染、没有仓库上下文，
+    # 访客会误以为「这工具把内部配置暴露了」。
+    # 所以页面里引用仓库文件，一律写 GitHub 的渲染地址。
+    # 注意：指向同站 .html 页面的相对链接是正常的，不算问题。
+    RAW_EXT = (".md", ".py", ".json", ".csv", ".txt", ".yml", ".yaml")
+    rel_raw = sorted({h for h in re.findall(r'<a\s[^>]*href="([^"]+)"', html)
+                      if not h.startswith(("http://", "https://", "#", "mailto:"))
+                      and h.lower().split("?")[0].endswith(RAW_EXT)})
+    if rel_raw:
+        problems.append(f"指向源码文件的相对链接（Pages 上会直出源码，应改成绝对地址）：{rel_raw}")
+    else:
+        print("  ✅ 无指向源码文件的相对链接")
 
     print()
     print("=" * 62)

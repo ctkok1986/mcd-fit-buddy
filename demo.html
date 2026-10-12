@@ -218,6 +218,11 @@ footer b{color:var(--txt)}
 /* 段选控件下方的说明文字（讲清当前档位的含义） */
 .segdesc{font-size:11.5px;color:#7c8794;margin-top:7px;line-height:1.55}
 .segdesc b{color:var(--txt)}
+/* 「二、餐次方案」里的配餐偏好切换 */
+.planpref{margin:0 0 15px;padding:11px 13px;border-radius:10px;
+  background:rgba(255,255,255,.028);border:1px solid var(--line)}
+.planpref .pphead{font-size:11.5px;color:#7c8794;margin-bottom:8px}
+.planpref .seg button{font-size:13px}
 /* 「补齐方案」块 */
 .fixbox{margin-top:12px;padding:12px 14px;border-radius:10px;
   background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.28)}
@@ -336,6 +341,15 @@ footer b{color:var(--txt)}
     <div class="card">
       <h3><span class="bar"></span>二、餐次方案<span class="livetag"><span class="livedot"></span><span class="ltxt">已更新</span></span></h3>
       <p class="hint">只配你勾选的餐次，其余餐次作为额度约束扣除</p>
+      <div class="planpref">
+        <div class="pphead">配餐偏好 —— 换一个权重，整份菜单跟着变（点餐清单同步更新）</div>
+        <div class="seg" id="planPref">
+          <button data-v="protein" class="on">蛋白优先</button>
+          <button data-v="sodium">控钠优先</button>
+          <button data-v="safe">钠达标</button>
+        </div>
+        <div class="segdesc" id="planPrefDesc"></div>
+      </div>
       <div id="plan"></div>
       <div class="handoff">
         <div class="hrow">
@@ -377,8 +391,8 @@ footer b{color:var(--txt)}
     </div>
     <b>麦麦减脂搭子（McFit Buddy）</b> ·
     <a href="https://github.com/ctkok1986/mcd-fit-buddy">GitHub 仓库</a> ·
-    <a href="README.md">完整说明</a> ·
-    <a href="SKILL.md">技能定义</a>
+    <a href="https://github.com/ctkok1986/mcd-fit-buddy#readme">完整说明</a> ·
+    <a href="https://github.com/ctkok1986/mcd-fit-buddy/blob/main/SKILL.md">技能定义</a>
     <div class="fnote">
       营养数据来自麦当劳官方 MCP 接口 <code>list-nutrition-foods</code> 快照（158 项）。<br>
       本页计算逻辑与仓库内 Python 引擎保持一致，并由对拍脚本逐项校验。<br>
@@ -1057,7 +1071,8 @@ const state = {
   sex:"male", weight:78, height:175, age:40, activity:"light",
   bodyfat:22, bmr:null, goal:"recomp",
   solve:new Set(["breakfast","lunch","dinner"]),
-  known:{}
+  known:{},
+  planPref:"protein"          // 配餐偏好：protein（蛋白优先）/ sodium（控钠优先）/ safe（钠达标）
 };
 
 function bindSeg(id, key){
@@ -1114,6 +1129,34 @@ $("meals").addEventListener("click", e=>{
   renderKnownInputs();
   markDirty();
 });
+
+/* ── 配餐偏好：换一个权重 = 换一份菜单 ──
+   为什么点一下立即重算：它本身等价于「换个权重再按一次生成方案」，
+   不是对已有结果的二次微调 —— 右侧结果区仍只由「生成方案」驱动，
+   这里是在选「要看哪一份方案」，所以即时生效。
+   —— 也正是为了回应「不能为了凑蛋白而接受高钠」：低钠方案必须一键可达。 */
+const SAFE_SCAN = [4, 8, 12, 20, 40];
+
+/* 扫几档控钠权重，取「钠 ≤ 建议值且蛋白最高」的一条。
+   引擎函数本身没变 —— 这里只是把同一个求解器按不同权重多调几次。 */
+function findSafePlan(target, solveKeys, knownList){
+  let best = null;
+  for (const sw of SAFE_SCAN){
+    const pl = buildSlotPlan(ITEMS, target, solveKeys, knownList, sw);
+    const t  = totals(pl.plan.flatMap(x => x.combo));
+    if (t.sodium <= SODIUM_CAP && (!best || t.protein > best.t.protein)) best = {t, sw};
+  }
+  return best;
+}
+
+$("planPref").addEventListener("click", e=>{
+  const btn = e.target.closest("button"); if(!btn) return;
+  [...$("planPref").children].forEach(b=>b.classList.toggle("on", b.dataset.v === btn.dataset.v));
+  state.planPref = btn.dataset.v;
+  render();
+  setDirty(false);      // 结果当场已是最新
+});
+
 /* 结果卡闪一下，让「刚刚更新过」这件事看得见 */
 function flashCards(){
   document.querySelectorAll(".stack > .card").forEach(c => {
@@ -1377,9 +1420,9 @@ function buildOrderText(plan, info, target, knownList, tot){
          + " kcal（" + (dk >= 0 ? "剩余 " + dk.toFixed(0) : "超标 " + (-dk).toFixed(0)) + "）");
   L.push("蛋白 " + tot.protein.toFixed(0) + " / " + target.proteinTarget.toFixed(0)
          + " g（" + (dp > 0 ? "缺口 " + dp.toFixed(0) : "已达标") + "）");
-  L.push("钠 " + tot.sodium.toFixed(0) + " / " + SODIUM_CAP + " mg"
-         + (tot.sodium <= SODIUM_CAP ? "（在限内）"
-            : "（超 " + (tot.sodium - SODIUM_CAP).toFixed(0) + " mg）"));
+  // 用与结果区同一套分档，避免「清单说超上限、页面说略高」这种口径分裂
+  L.push("钠 " + tot.sodium.toFixed(0) + " / " + SODIUM_CAP + " mg（"
+         + sodiumGrade(tot.sodium).txt + "）");
   L.push("");
   L.push("── 请 WorkBuddy 用我的麦当劳 MCP 完成下单 ──");
   L.push("1. 先问我要哪家门店（自提）或送餐地址（外送）");
@@ -1479,7 +1522,18 @@ function renderResults(){
   const solveKeys = ["breakfast","lunch","dinner"].filter(k=>state.solve.has(k));
   const knownList = ["breakfast","lunch","dinner"].filter(k=>!state.solve.has(k))
     .map(k=>({label:MEAL_SLOTS[k].label, ...(state.known[k]||{kcal:0,protein:0,sodium:0})}));
-  const {plan,info} = buildSlotPlan(ITEMS, target, solveKeys, knownList, 0.5);
+  /* 「钠达标」档需要扫描；扫描较贵，所以惰性求值 —— 整次渲染最多算一次，
+     后面的「补齐方案」也复用同一个结果。
+     safeCache: undefined = 还没算；null = 算了但没有达标解 */
+  let safeCache;
+  const getSafe = () => {
+    if (safeCache === undefined) safeCache = findSafePlan(target, solveKeys, knownList);
+    return safeCache;
+  };
+  const mainSw = state.planPref === "protein" ? 0.5
+               : state.planPref === "sodium"  ? 4.0
+               : (getSafe() ? getSafe().sw : 40);
+  const {plan,info} = buildSlotPlan(ITEMS, target, solveKeys, knownList, mainSw);
   const pEl = $("plan");
   let pHtml = "";
 
@@ -1544,6 +1598,21 @@ function renderResults(){
     想压低的话，优先看下面「控钠优先方案」。</div>`:""}`;
   pEl.innerHTML = pHtml;
 
+  /* 把当前档位的实际代价标在切换器下方 ——
+     「选哪一档、要付什么」必须一眼看见，否则用户没法判断该不该换低钠档。 */
+  const ppEl = $("planPrefDesc");
+  if (ppEl){
+    const mt   = totals(plan.flatMap(x=>x.combo));
+    const kcal = mt.kcal + info.knownKcal;
+    const prot = mt.protein + info.knownProtein;
+    const na   = mt.sodium  + info.knownSodium;
+    const g    = sodiumGrade(na);
+    const label = {protein:"蛋白优先", sodium:"控钠优先", safe:"钠达标"}[state.planPref];
+    ppEl.innerHTML = `💡 当前「${label}」：热量 <b>${kcal.toFixed(0)}</b> kcal｜`
+      + `蛋白 <b>${prot.toFixed(0)}</b> g｜钠 <b style="color:${g.c}">${na.toFixed(0)}</b> mg`
+      + `（${g.txt}）`;
+  }
+
   /* ── 3. 冲突可视化 ── */
   const full = solveKeys.length === 3 && !knownList.length;
   const pProt = buildSlotPlan(ITEMS,target,solveKeys,knownList,0.5);
@@ -1576,15 +1645,9 @@ function renderResults(){
     + `</div>`;
 
   if (full && tProt.sodium > SODIUM_CAP && tSod.protein < target.proteinTarget*0.95){
-    /* ① 先去找一条「钠达标」的餐单：
-          用几档控钠权重各解一次，取其中「钠 ≤ 上限且蛋白最高」的一条。
-          只在渲染层做（重复调用引擎函数）—— 配餐引擎未改，对拍仍逐项一致。 */
-    let comp = null;
-    for (const sw of [4, 8, 12, 20, 40]){
-      const pl = buildSlotPlan(ITEMS, target, solveKeys, knownList, sw);
-      const t  = totals(pl.plan.flatMap(x => x.combo));
-      if (t.sodium <= SODIUM_CAP && (!comp || t.protein > comp.t.protein)) comp = {t, sw};
-    }
+    /* ① 取一条「钠达标」的餐单作补齐基线 ——
+          主方案那里已按需算过（getSafe 内部有缓存），这里直接复用，不重复扫描。 */
+    const comp    = getSafe();
     const base    = comp ? comp.t : tSod;          // 补齐方案的主线餐单
     const baseTag = comp ? "钠达标餐单" : "控钠优先餐单";
 
