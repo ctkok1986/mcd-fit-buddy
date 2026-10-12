@@ -145,8 +145,16 @@ def render_combos():
     否则就成了又一个会腐烂的硬编码数字。
     """
     combos, snap = mp.load_combos()
+    doc_missing = []
+    if os.path.exists(mp.COMBOS_PATH):
+        with open(mp.COMBOS_PATH, encoding="utf-8") as f:
+            doc_missing = json.load(f).get("missing_options", [])
     doc = {
         "snapshot": snap,
+        # ⚠️ 必须一起注入：这些是**营养表里查不到的选项**（多为新品）。
+        #    页面不说明它们，读者会以为套餐只有列出来那几个选项，
+        #    等于把「数据覆盖不足」藏起来了。
+        "missing_options": doc_missing,
         "combos": [
             {
                 "code": c["code"],

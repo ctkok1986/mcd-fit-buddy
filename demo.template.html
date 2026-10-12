@@ -940,6 +940,13 @@ function renderCombos(target){
   h += `<div class="combonote">`;
   h += `⚠️ 套餐是<b style="color:var(--txt)">打包卖的</b>：里面那份薯条／小食的钠跑不掉，`
      + `所以省钱的同时钠会上去。要控钠就回到上面的「控钠优先 / 钠达标」档。<br>`;
+  // 营养表覆盖不到的可换选项必须说出来，否则读者会以为套餐只有列出来那几个选择
+  const miss = doc.missing_options || [];
+  if (miss.length){
+    h += `另有 ${miss.length} 个可换选项（多为新品，如 ${miss.slice(0, 3).join("、")} 等）`
+       + `在官方营养表里<b style="color:var(--txt)">查不到营养数据</b>，本页不计入 —— `
+       + `查不到就说查不到，不猜数。<br>`;
+  }
   if (doc.snapshot && doc.snapshot.fetched_at){
     h += `价格快照 ${doc.snapshot.fetched_at.slice(0, 16).replace("T", " ")}`
        + ` ＠${doc.snapshot.store_name || ""}（到店自取）。`
