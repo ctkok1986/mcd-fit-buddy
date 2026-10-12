@@ -181,16 +181,16 @@
 
 调用链**必须按顺序**，每步等用户选择：
 
-```
-query-party-city          → 哪些城市
+```text
+`query-party-city`           → 哪些城市
       ↓（拿 code / 经纬度）
-query-party-store         → 该城市哪些门店
+`query-party-store`          → 该城市哪些门店
       ↓（拿 storeCode）
-query-party-store-date    → 该门店哪些日期可约
+`query-party-store-date`     → 该门店哪些日期可约
       ↓（拿 dateStr）
-query-party-store-session → 当天有哪些场次（时间 / 余位 / 价格）
+`query-party-store-session`  → 当天有哪些场次（时间 / 余位 / 价格）
       ↓
-party-order-create        → 下单 ⚠️ 写入（partyType：1 包场 / 2 拼团）
+`party-order-create`         → 下单 ⚠️ 写入（partyType：1 包场 / 2 拼团）
 ```
 
 > 每个工具都要求先确定 `spuId`（来自 `mall-points-products` 或 `mall-product-detail`）。
