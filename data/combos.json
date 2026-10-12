@@ -1,0 +1,799 @@
+{
+ "snapshot": {
+  "fetched_at": "2026-10-13T00:37+08:00",
+  "store_code": "1410098",
+  "store_name": "麦当劳福州盛世茶亭餐厅",
+  "channel": "到店自取 (orderType=1, beType=1)",
+  "source": "MCP query-meals + query-meal-detail",
+  "note": "价格为本店快照，实际以门店当时价为准；营养由组成单品加总得出。"
+ },
+ "combos": [
+  {
+   "code": "9900015188",
+   "name": "精选超值随心配",
+   "kind": "1+1",
+   "price": 13.9,
+   "orig": 13.9,
+   "save": 0.0,
+   "rounds": [
+    {
+     "name": "蓝区（选 1 主食）",
+     "choices": [
+      {
+       "name": "双层吉士汉堡",
+       "menu_name": null,
+       "diff": 1.0,
+       "kcal": 429.0,
+       "protein": 27.0,
+       "sodium": 1017.0
+      },
+      {
+       "name": "麦乐鸡5块",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 213.0,
+       "protein": 12.0,
+       "sodium": 422.0
+      },
+      {
+       "name": "麦香鸡",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 369.0,
+       "protein": 15.0,
+       "sodium": 731.0
+      },
+      {
+       "name": "小薯条",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 210.0,
+       "protein": 3.0,
+       "sodium": 120.0
+      }
+     ]
+    },
+    {
+     "name": "粉区（选 1 小食/饮料）",
+     "choices": [
+      {
+       "name": "阳光柠檬红茶中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 117.0,
+       "protein": 0.0,
+       "sodium": 17.0
+      },
+      {
+       "name": "可乐中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 147.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "香芋派",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 232.0,
+       "protein": 2.0,
+       "sodium": 159.0
+      },
+      {
+       "name": "迷你草莓新地",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 122.0,
+       "protein": 2.0,
+       "sodium": 42.0
+      },
+      {
+       "name": "迷你朱古力新地",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 140.0,
+       "protein": 3.0,
+       "sodium": 63.0
+      },
+      {
+       "name": "锡兰红茶",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 2.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "中杯怡泉+C",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 110.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "雪碧中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 105.0,
+       "protein": 0.0,
+       "sodium": 29.0
+      },
+      {
+       "name": "无糖可口可乐中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 0.0,
+       "protein": 0.0,
+       "sodium": 35.0
+      }
+     ]
+    }
+   ],
+   "default_menu": [
+    "高达吉士双牛堡",
+    "阳光柠檬红茶中杯"
+   ],
+   "default_total": null
+  },
+  {
+   "code": "9900015187",
+   "name": "人气经典随心配",
+   "kind": "1+1",
+   "price": 14.9,
+   "orig": 14.9,
+   "save": 0.0,
+   "rounds": [
+    {
+     "name": "蓝区（选 1 主食）",
+     "choices": [
+      {
+       "name": "双层吉士汉堡",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 429.0,
+       "protein": 27.0,
+       "sodium": 1017.0
+      },
+      {
+       "name": "麦乐鸡5块",
+       "menu_name": null,
+       "diff": -1.0,
+       "kcal": 213.0,
+       "protein": 12.0,
+       "sodium": 422.0
+      },
+      {
+       "name": "麦香鸡",
+       "menu_name": null,
+       "diff": -1.0,
+       "kcal": 369.0,
+       "protein": 15.0,
+       "sodium": 731.0
+      },
+      {
+       "name": "小薯条",
+       "menu_name": null,
+       "diff": -1.0,
+       "kcal": 210.0,
+       "protein": 3.0,
+       "sodium": 120.0
+      }
+     ]
+    },
+    {
+     "name": "粉区（选 1 小食/饮料）",
+     "choices": [
+      {
+       "name": "阳光柠檬红茶中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 117.0,
+       "protein": 0.0,
+       "sodium": 17.0
+      },
+      {
+       "name": "可乐中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 147.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "香芋派",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 232.0,
+       "protein": 2.0,
+       "sodium": 159.0
+      },
+      {
+       "name": "迷你草莓新地",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 122.0,
+       "protein": 2.0,
+       "sodium": 42.0
+      },
+      {
+       "name": "迷你朱古力新地",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 140.0,
+       "protein": 3.0,
+       "sodium": 63.0
+      },
+      {
+       "name": "锡兰红茶",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 2.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "中杯怡泉+C",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 110.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "雪碧中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 105.0,
+       "protein": 0.0,
+       "sodium": 29.0
+      },
+      {
+       "name": "无糖可口可乐中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 0.0,
+       "protein": 0.0,
+       "sodium": 35.0
+      }
+     ]
+    }
+   ],
+   "default_menu": [
+    "双层吉士汉堡",
+    "可乐麦炫酷"
+   ],
+   "default_total": null
+  },
+  {
+   "code": "9900005453",
+   "name": "麦香鸡中套餐",
+   "kind": "3件套",
+   "price": 28.0,
+   "orig": 41.5,
+   "save": 13.5,
+   "rounds": [
+    {
+     "name": "汉堡",
+     "choices": [
+      {
+       "name": "麦香鸡",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 369.0,
+       "protein": 15.0,
+       "sodium": 731.0
+      }
+     ]
+    },
+    {
+     "name": "小食",
+     "choices": [
+      {
+       "name": "中薯条",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 289.0,
+       "protein": 4.0,
+       "sodium": 165.0
+      },
+      {
+       "name": "大薯条",
+       "menu_name": null,
+       "diff": 1.5,
+       "kcal": 379.0,
+       "protein": 6.0,
+       "sodium": 216.0
+      }
+     ]
+    },
+    {
+     "name": "饮料",
+     "choices": [
+      {
+       "name": "可乐中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 147.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "无糖可口可乐中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 0.0,
+       "protein": 0.0,
+       "sodium": 35.0
+      },
+      {
+       "name": "雪碧中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 105.0,
+       "protein": 0.0,
+       "sodium": 29.0
+      },
+      {
+       "name": "阳光柠檬红茶中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 117.0,
+       "protein": 0.0,
+       "sodium": 17.0
+      },
+      {
+       "name": "锡兰红茶",
+       "menu_name": null,
+       "diff": 1.5,
+       "kcal": 2.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "纯牛奶（盒装）",
+       "menu_name": "纯牛奶",
+       "diff": 1.0,
+       "kcal": 129.0,
+       "protein": 7.0,
+       "sodium": 73.0
+      },
+      {
+       "name": "大杯鲜萃咖啡",
+       "menu_name": null,
+       "diff": 1.5,
+       "kcal": 13.0,
+       "protein": 1.0,
+       "sodium": 3.0
+      },
+      {
+       "name": "冰美式中杯",
+       "menu_name": "麦咖啡冰美式中杯",
+       "diff": 9.0,
+       "kcal": 13.0,
+       "protein": 1.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "热美式中杯",
+       "menu_name": "麦咖啡热美式中杯",
+       "diff": 9.0,
+       "kcal": 13.0,
+       "protein": 1.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "冰浓浓黑巧中杯",
+       "menu_name": null,
+       "diff": 11.0,
+       "kcal": 135.0,
+       "protein": 8.0,
+       "sodium": 77.0
+      },
+      {
+       "name": "热浓浓黑巧中杯",
+       "menu_name": null,
+       "diff": 11.0,
+       "kcal": 176.0,
+       "protein": 10.0,
+       "sodium": 101.0
+      },
+      {
+       "name": "冰奶铁中杯",
+       "menu_name": "麦咖啡冰奶铁中杯",
+       "diff": 11.0,
+       "kcal": 148.0,
+       "protein": 8.0,
+       "sodium": 77.0
+      },
+      {
+       "name": "热奶铁中杯",
+       "menu_name": "麦咖啡热奶铁中杯",
+       "diff": 11.0,
+       "kcal": 186.0,
+       "protein": 11.0,
+       "sodium": 99.0
+      },
+      {
+       "name": "可乐大杯",
+       "menu_name": null,
+       "diff": 2.0,
+       "kcal": 224.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "无糖可口可乐大杯",
+       "menu_name": null,
+       "diff": 2.0,
+       "kcal": 0.0,
+       "protein": 0.0,
+       "sodium": 53.0
+      },
+      {
+       "name": "雪碧大杯",
+       "menu_name": null,
+       "diff": 2.0,
+       "kcal": 160.0,
+       "protein": 0.0,
+       "sodium": 45.0
+      },
+      {
+       "name": "阳光柠檬红茶大杯",
+       "menu_name": null,
+       "diff": 2.0,
+       "kcal": 178.0,
+       "protein": 0.0,
+       "sodium": 25.0
+      },
+      {
+       "name": "中杯怡泉+C",
+       "menu_name": null,
+       "diff": 1.5,
+       "kcal": 110.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "大杯怡泉+C",
+       "menu_name": null,
+       "diff": 3.5,
+       "kcal": 168.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "【美汁源】黄金橙橙",
+       "menu_name": "【美汁源】“黄金橙橙”",
+       "diff": 3.0,
+       "kcal": 165.0,
+       "protein": 0.0,
+       "sodium": 53.0
+      },
+      {
+       "name": "100%苹果汁",
+       "menu_name": null,
+       "diff": 2.0,
+       "kcal": 88.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      }
+     ]
+    }
+   ],
+   "default_menu": [
+    "麦香鸡",
+    "中薯条",
+    "可乐中杯"
+   ],
+   "default_total": {
+    "kcal": 805.0,
+    "protein": 19.0,
+    "sodium": 896.0
+   }
+  },
+  {
+   "code": "9900000890",
+   "name": "板烧鸡腿堡四件套",
+   "kind": "4件套",
+   "price": 28.0,
+   "orig": 57.0,
+   "save": 29.0,
+   "rounds": [
+    {
+     "name": "汉堡",
+     "choices": [
+      {
+       "name": "板烧鸡腿堡",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 391.0,
+       "protein": 23.0,
+       "sodium": 1041.0
+      }
+     ]
+    },
+    {
+     "name": "小食 ①",
+     "choices": [
+      {
+       "name": "中薯条",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 289.0,
+       "protein": 4.0,
+       "sodium": 165.0
+      },
+      {
+       "name": "奥利奥麦旋风",
+       "menu_name": null,
+       "diff": 1.0,
+       "kcal": 266.0,
+       "protein": 5.0,
+       "sodium": 116.0
+      }
+     ]
+    },
+    {
+     "name": "小食 ②",
+     "choices": [
+      {
+       "name": "麦乐鸡4块",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 170.0,
+       "protein": 10.0,
+       "sodium": 337.0
+      },
+      {
+       "name": "薄皮焦香V翅",
+       "menu_name": null,
+       "diff": 4.5,
+       "kcal": 192.0,
+       "protein": 17.0,
+       "sodium": 594.0
+      },
+      {
+       "name": "麦辣鸡翅-2块",
+       "menu_name": "麦辣鸡翅2块",
+       "diff": 3.5,
+       "kcal": 224.0,
+       "protein": 13.0,
+       "sodium": 537.0
+      },
+      {
+       "name": "麦麦脆汁鸡-琵琶腿",
+       "menu_name": null,
+       "diff": 3.5,
+       "kcal": 328.0,
+       "protein": 21.0,
+       "sodium": 905.0
+      }
+     ]
+    },
+    {
+     "name": "饮料",
+     "choices": [
+      {
+       "name": "可乐中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 147.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "无糖可口可乐中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 0.0,
+       "protein": 0.0,
+       "sodium": 35.0
+      },
+      {
+       "name": "雪碧中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 105.0,
+       "protein": 0.0,
+       "sodium": 29.0
+      },
+      {
+       "name": "阳光柠檬红茶中杯",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 117.0,
+       "protein": 0.0,
+       "sodium": 17.0
+      },
+      {
+       "name": "锡兰红茶",
+       "menu_name": null,
+       "diff": 0.0,
+       "kcal": 2.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "纯牛奶（盒装）",
+       "menu_name": "纯牛奶",
+       "diff": 1.0,
+       "kcal": 129.0,
+       "protein": 7.0,
+       "sodium": 73.0
+      },
+      {
+       "name": "100%苹果汁",
+       "menu_name": null,
+       "diff": 2.0,
+       "kcal": 88.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "大杯鲜萃咖啡",
+       "menu_name": null,
+       "diff": 1.5,
+       "kcal": 13.0,
+       "protein": 1.0,
+       "sodium": 3.0
+      },
+      {
+       "name": "冰美式中杯",
+       "menu_name": "麦咖啡冰美式中杯",
+       "diff": 9.0,
+       "kcal": 13.0,
+       "protein": 1.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "热美式中杯",
+       "menu_name": "麦咖啡热美式中杯",
+       "diff": 9.0,
+       "kcal": 13.0,
+       "protein": 1.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "冰浓浓黑巧中杯",
+       "menu_name": null,
+       "diff": 11.0,
+       "kcal": 135.0,
+       "protein": 8.0,
+       "sodium": 77.0
+      },
+      {
+       "name": "热浓浓黑巧中杯",
+       "menu_name": null,
+       "diff": 11.0,
+       "kcal": 176.0,
+       "protein": 10.0,
+       "sodium": 101.0
+      },
+      {
+       "name": "冰奶铁中杯",
+       "menu_name": "麦咖啡冰奶铁中杯",
+       "diff": 11.0,
+       "kcal": 148.0,
+       "protein": 8.0,
+       "sodium": 77.0
+      },
+      {
+       "name": "热奶铁中杯",
+       "menu_name": "麦咖啡热奶铁中杯",
+       "diff": 11.0,
+       "kcal": 186.0,
+       "protein": 11.0,
+       "sodium": 99.0
+      },
+      {
+       "name": "冰浓浓燕麦黑巧中杯",
+       "menu_name": null,
+       "diff": 13.0,
+       "kcal": 120.0,
+       "protein": 2.0,
+       "sodium": 87.0
+      },
+      {
+       "name": "热浓浓燕麦黑巧中杯",
+       "menu_name": null,
+       "diff": 13.0,
+       "kcal": 157.0,
+       "protein": 3.0,
+       "sodium": 114.0
+      },
+      {
+       "name": "可乐大杯",
+       "menu_name": null,
+       "diff": 2.0,
+       "kcal": 224.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "无糖可口可乐大杯",
+       "menu_name": null,
+       "diff": 2.0,
+       "kcal": 0.0,
+       "protein": 0.0,
+       "sodium": 53.0
+      },
+      {
+       "name": "雪碧大杯",
+       "menu_name": null,
+       "diff": 2.0,
+       "kcal": 160.0,
+       "protein": 0.0,
+       "sodium": 45.0
+      },
+      {
+       "name": "阳光柠檬红茶大杯",
+       "menu_name": null,
+       "diff": 2.0,
+       "kcal": 178.0,
+       "protein": 0.0,
+       "sodium": 25.0
+      },
+      {
+       "name": "中杯怡泉+C",
+       "menu_name": null,
+       "diff": 1.5,
+       "kcal": 110.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "大杯怡泉+C",
+       "menu_name": null,
+       "diff": 3.5,
+       "kcal": 168.0,
+       "protein": 0.0,
+       "sodium": 0.0
+      },
+      {
+       "name": "【美汁源】黄金橙橙",
+       "menu_name": "【美汁源】“黄金橙橙”",
+       "diff": 3.0,
+       "kcal": 165.0,
+       "protein": 0.0,
+       "sodium": 53.0
+      }
+     ]
+    }
+   ],
+   "default_menu": [
+    "板烧鸡腿堡",
+    "中薯条",
+    "麦乐鸡4块",
+    "可乐中杯"
+   ],
+   "default_total": {
+    "kcal": 997.0,
+    "protein": 37.0,
+    "sodium": 1543.0
+   }
+  }
+ ],
+ "missing_options": [
+  "5块心形薯饼+韩式辣椒黄油风味酱",
+  "【美汁源】“多汁柠柠”",
+  "可乐麦炫酷",
+  "怡泉+C麦炫酷",
+  "无糖可乐麦炫酷",
+  "月下相思扭扭薯",
+  "柠檬脆脆麦旋风",
+  "泷盐星星麦旋风",
+  "美禄可可雪冰",
+  "脆皮鸡柳3根",
+  "蓝莓爆爆珠麦旋风",
+  "蘸蘸脆皮鸡柳（山葵酱）",
+  "蘸蘸脆皮鸡柳（牧场酱）",
+  "雪碧麦炫酷",
+  "韩式烟熏芝士风味酱脆皮鸡柳",
+  "韩式烟熏芝士风味酱麦麦脆汁鸡-腿",
+  "马苏里拉拉丝芝士条",
+  "高达吉士双牛堡",
+  "鲜萃冰咖"
+ ]
+}

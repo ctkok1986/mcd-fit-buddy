@@ -25,6 +25,8 @@ DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "..", "data", "nutrition.csv")
 COMMON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "..", "data", "common-foods.csv")
+COMBOS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "..", "data", "combos.json")
 
 # 1 kg 脂肪 ≈ 7700 kcal
 KCAL_PER_KG_FAT = 7700
@@ -146,6 +148,99 @@ def load_common():
             except (ValueError, KeyError, AttributeError):
                 continue
     return rows
+
+
+def load_combos():
+    """读套餐快照 data/combos.json。
+
+    里面的套餐来自 MCP `query-meals` + `query-meal-detail` 的真实返回，
+    由 `tools/build_combos.py` 生成。**营养 = 各轮选中项之和**（单品级数据加总），
+    所以套餐不需要单独的官方营养数据。
+
+    ⚠️ 快照带 `snapshot.fetched_at`，价格会变，**不要把它当实时价**。
+    """
+    if not os.path.exists(COMBOS_PATH):
+        return [], {}
+    with open(COMBOS_PATH, encoding="utf-8") as f:
+        doc = json.load(f)
+    return doc.get("combos", []), doc.get("snapshot", {})
+
+
+def combo_best_fill(combo, want_kcal, want_protein):
+    """在一个套餐的每一轮里各选一项，使营养尽量贴近 (want_kcal, want_protein)。
+
+    轮次之间相互独立，所以逐轮贪心即可。
+    **价格要一起算**：每轮都有 diffPrice（相对该轮默认项的差价），
+    不加惩罚的话会专挑贵的营养更好项，把「省下的钱」又花回去。
+
+    返回 (choices, totals)；若某轮没有任何**有营养数据**的选项则返回 (None, None)。
+    """
+    # 每多花 1 元的代价（分）。热量偏差 100 kcal 记 100 分、蛋白偏差 1 g 记 6 分，
+    # 所以 20 分/元 ≈「多花 1 元，只换得 20 kcal 的营养贴合」，够保守。
+    COST_W = 20.0
+
+    picked = []
+    tk = tp = ts = 0.0
+    for rnd in combo.get("rounds", []):
+        chs = rnd.get("choices") or []
+        if not chs:
+            return None, None
+
+        def gain(c):
+            fit = -(abs(want_kcal - (tk + c["kcal"]))
+                    + abs(want_protein - (tp + c["protein"])) * 6)
+            return fit - c.get("diff", 0.0) * COST_W
+
+        best = max(chs, key=gain)
+        picked.append(best)
+        tk += best["kcal"]; tp += best["protein"]; ts += best["sodium"]
+    extra = sum(x.get("diff", 0.0) for x in picked)
+    return picked, {"kcal": tk, "protein": tp, "sodium": ts, "extra": extra}
+
+
+def combo_summary(combos, target=None, n_slots=3):
+    """把套餐快照整理成可展示的列表（含与单点的价差）。
+
+    `n_slots` = 实际要配的餐次数。单餐目标 = 全天目标 ÷ n_slots，
+    **不要写死 ÷3** —— 只配一餐时那一餐要扛接近全天目标。
+
+    `orig`（原价）实测等于「组成单品单点相加」，所以
+    省下的钱 = orig - price，**不需要额外的单点价格表**。
+    （核对：麦香鸡套餐原价 41.5，单点 17+14.5+9.5=41.0，吻合。）
+    """
+    out = []
+    for c in combos:
+        # ⚠️ 折扣只用官方的「原价 - 牌价」，**不要拿挑完的实付去算**：
+        #    一是换品加价是用户自己的选择，不该算进"省了多少"；
+        #    二是随心配 1+1 的原价 == 牌价（它没有划线折扣），
+        #    拿实付去减会算出负数，看着像"倒贴"。
+        save = round(c["orig"] - c["price"], 2)
+        item = {
+            "code": c["code"],
+            "name": c["name"],
+            "kind": c.get("kind", ""),
+            "price": c["price"],
+            "orig": c["orig"],
+            "has_discount": save > 0.005,
+            "save": max(save, 0.0),
+            "save_pct": round(save / c["orig"] * 100) if c["orig"] and save > 0.005 else 0,
+            "default_menu": c.get("default_menu", []),
+            "default_total": c.get("default_total"),
+        }
+        if target:
+            # 按「这一餐该吃多少」的目标，在轮内选一组营养最贴、又不太加价的配置
+            n = max(1, int(n_slots))
+            want_k = target.get("daily_kcal", 0) / n
+            want_p = target.get("protein_target", 0) / n
+            chs, tot = combo_best_fill(c, want_k, want_p)
+            if chs:
+                item["pick"] = [x["name"] for x in chs]
+                item["pick_total"] = tot
+                item["pick_price"] = round(c["price"] + tot.get("extra", 0.0), 2)
+                item["pick_extra"] = round(tot.get("extra", 0.0), 2)
+        out.append(item)
+    out.sort(key=lambda x: (-x["save_pct"], x["price"]))
+    return out
 
 
 def calc_bmr(weight, height, age, sex):

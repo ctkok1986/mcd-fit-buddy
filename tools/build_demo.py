@@ -138,17 +138,59 @@ def render_common(rows):
     return "[\n" + ",\n".join(out) + "\n]"
 
 
+def render_combos():
+    """把套餐快照（data/combos.json）渲染成 JS 字面量。
+
+    **连快照时间一起注入**：价格会变，页面必须能说出「这是几点的价」，
+    否则就成了又一个会腐烂的硬编码数字。
+    """
+    combos, snap = mp.load_combos()
+    doc = {
+        "snapshot": snap,
+        "combos": [
+            {
+                "code": c["code"],
+                "name": c["name"],
+                "kind": c.get("kind", ""),
+                "price": c["price"],
+                "orig": c["orig"],
+                "rounds": [
+                    {
+                        "name": r["name"],
+                        "choices": [
+                            {
+                                "name": ch["name"],
+                                "diff": ch["diff"],
+                                "kcal": ch["kcal"],
+                                "protein": ch["protein"],
+                                "sodium": ch["sodium"],
+                            }
+                            for ch in r["choices"]
+                        ],
+                    }
+                    for r in c["rounds"]
+                ],
+                "default_menu": c.get("default_menu", []),
+                "default_total": c.get("default_total"),
+            }
+            for c in combos
+        ],
+    }
+    return json.dumps(doc, ensure_ascii=False, separators=(",", ":"))
+
+
 def main():
     rows = load_rows()
     common = load_common()
     tpl = open(TPL_PATH, encoding="utf-8").read()
     values = hero_stats(rows, common)
-    for token in ("__NUTRITION_DATA__", "__COMMON_FOODS__", *values):
+    for token in ("__NUTRITION_DATA__", "__COMMON_FOODS__", "__COMBOS__", *values):
         if token not in tpl:
             raise SystemExit(f"模板缺少占位符 {token}")
     html = (tpl
             .replace("__NUTRITION_DATA__", render_data(rows))
-            .replace("__COMMON_FOODS__", render_common(common)))
+            .replace("__COMMON_FOODS__", render_common(common))
+            .replace("__COMBOS__", render_combos()))
     for token, val in values.items():
         html = html.replace(token, str(val))
     with open(OUT_PATH, "w", encoding="utf-8") as f:
@@ -157,11 +199,13 @@ def main():
         f.write(INDEX_TPL)
     with open(NOJEKYLL_PATH, "w", encoding="utf-8") as f:
         f.write("")
+    combos, _ = mp.load_combos()
     print(f"已生成 {os.path.relpath(OUT_PATH, ROOT)}")
     print(f"已生成 {os.path.relpath(INDEX_PATH, ROOT)}（GitHub Pages 入口，跳转到 demo.html）")
     print(f"已生成 {os.path.relpath(NOJEKYLL_PATH, ROOT)}（跳过 Jekyll 处理）")
     print(f"  麦当劳营养数据 {len(rows)} 项")
     print(f"  常见食物数据   {len(common)} 项")
+    print(f"  套餐快照       {len(combos)} 个")
     for token, val in values.items():
         print(f"  {token:<20} = {val}")
     print(f"  文件大小 {len(html):,} 字节")

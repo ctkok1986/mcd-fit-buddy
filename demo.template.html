@@ -230,6 +230,25 @@ footer b{color:var(--txt)}
 .fixrow{display:flex;justify-content:space-between;gap:12px;
   font-size:12.5px;color:var(--dim);padding:3px 0}
 .fixrow b{color:var(--txt);font-variant-numeric:tabular-nums}
+/* 「五、套餐平替」 */
+.combocard{border:1px solid #2e353f;border-radius:11px;padding:11px 13px;margin-top:9px;
+  background:#1b1f26}
+.combocard.hot{border-color:rgba(255,199,44,.42);
+  background:linear-gradient(180deg,rgba(255,199,44,.065),transparent)}
+.combohd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.comboname{font-weight:600;font-size:14px;color:var(--txt)}
+.combobadge{font-size:11px;padding:1px 7px;border-radius:20px;white-space:nowrap;
+  background:rgba(74,222,128,.16);color:#4ade80;border:1px solid rgba(74,222,128,.3)}
+.combobadge.gray{background:rgba(148,163,184,.13);color:#94a3b8;
+  border-color:rgba(148,163,184,.28)}
+.comboprice{margin-left:auto;font-size:15px;font-weight:700;color:var(--gold);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.comboprice s{font-size:11.5px;color:#6b7480;font-weight:400;margin-left:5px}
+.comboextra{font-size:11px;color:#7c8794;font-weight:400;font-style:normal;margin-left:5px}
+.combopick{font-size:12.5px;color:var(--txt);margin-top:7px;line-height:1.55}
+.combonutri{font-size:12px;color:var(--dim);margin-top:5px;
+  font-variant-numeric:tabular-nums}
+.combonote{font-size:11.5px;color:#7c8794;margin-top:10px;line-height:1.65}
 </style>
 </head>
 <body>
@@ -374,6 +393,12 @@ footer b{color:var(--txt)}
       <h3><span class="bar"></span>四、离「看得见腹肌」还有多远<span class="livetag"><span class="livedot"></span><span class="ltxt">已更新</span></span></h3>
       <p class="hint">高体脂时腹肌被脂肪盖住，低体脂时可能被水盖住</p>
       <div id="abs"></div>
+    </div>
+
+    <div class="card">
+      <h3><span class="bar"></span>五、套餐平替：同样的东西，便宜一半<span class="livetag"><span class="livedot"></span><span class="ltxt">已更新</span></span></h3>
+      <p class="hint">套餐本身就是打折卖——只点单品等于白多花钱</p>
+      <div id="combos"></div>
     </div>
 
   </div>
@@ -826,6 +851,104 @@ function estimateMeal(text){
   return {hits: outHits, missed, tot};
 }
 /*__ENGINE_END__*/
+
+/* ══════════════════════════════════════════════════════════
+   套餐平替（对应 Python 侧 combo_best_fill / combo_summary）
+
+   为什么单列在 ENGINE 区之外：
+   ① 套餐数据（__COMBOS__）体积不小，而 tools/verify_demo.py 的对拍
+      只针对纯计算逻辑，塞进去只会把对拍脚本撑大且无益；
+   ② 这里的选择逻辑与 Python 必须用**同一套权重**（见 COMBO_COST_W），
+      两边不一致会被 README 里的示例立刻暴露。
+   ══════════════════════════════════════════════════════════ */
+const COMBO_DOC = __COMBOS__;
+
+/* 每多花 1 元的代价（分）。与 scripts/meal_planner.py 的 combo_best_fill 一致：
+   热量偏差 100 kcal 记 100 分、蛋白偏差 1 g 记 6 分，
+   所以 20 分/元 ≈「多花 1 元只换得 20 kcal 的贴合」，够保守。 */
+const COMBO_COST_W = 20.0;
+
+function comboBestFill(combo, wantK, wantP){
+  let tk = 0, tp = 0, ts = 0, extra = 0;
+  const picked = [];
+  for (const rnd of combo.rounds){
+    const chs = rnd.choices || [];
+    if (!chs.length) return null;
+    let best = null, bestG = -Infinity;
+    for (const c of chs){
+      // 逐轮贪心：挑「营养更贴合、又更便宜」的那一项
+      const fit = -(Math.abs(wantK - (tk + c.kcal)) + Math.abs(wantP - (tp + c.protein)) * 6);
+      const g = fit - (c.diff || 0) * COMBO_COST_W;
+      if (g > bestG){ bestG = g; best = c; }
+    }
+    picked.push(best);
+    tk += best.kcal; tp += best.protein; ts += best.sodium; extra += (best.diff || 0);
+  }
+  return {picked, kcal: tk, protein: tp, sodium: ts, extra};
+}
+
+function renderCombos(target){
+  const el = $("combos");
+  if (!el) return;
+  const doc = COMBO_DOC;
+  if (!doc || !doc.combos || !doc.combos.length){
+    el.innerHTML = `<div class="notebox">未加载套餐快照（data/combos.json）。</div>`;
+    return;
+  }
+  // 单餐目标 = 全天目标 ÷ **实际要配的餐次数**。
+  // 不能写死 ÷3：只勾一餐时（比如只吃晚餐），那一餐就得扛下接近全天目标，
+  // 除以 3 会让推荐偏向"轻"的配置，与实际求解口径不一致。
+  const nSlots = Math.max(1, (state.solve && state.solve.size) || 3);
+  const wantK = target.dailyKcal / nSlots, wantP = target.proteinTarget / nSlots;
+  const rows = doc.combos.map(c => {
+    const save = Math.max(0, c.orig - c.price);
+    const pct = c.orig > 0 ? Math.round(save / c.orig * 100) : 0;
+    return {c, save, pct, fill: comboBestFill(c, wantK, wantP)};
+  }).sort((a, b) => b.pct - a.pct || a.c.price - b.c.price);
+
+  const top = rows.find(r => r.pct > 0) || rows[0];
+
+  let h = `<div class="notebox" style="border-color:rgba(255,199,44,.3);`
+        + `background:rgba(255,199,44,.05)">`
+        + `<b style="color:var(--gold)">套餐本身就是打折卖。</b>`
+        + `同样几样东西，点成套餐比单点便宜一半 —— 只点单品等于白多花钱。<br>`
+        + `下面每个套餐都按你当前的<b style="color:var(--txt)">单餐目标</b>挑好了配置：`
+        + `营养相同时，价格优先。</div>`;
+
+  for (const r of rows){
+    const c = r.c, f = r.fill;
+    h += `<div class="combocard${c === top.c ? " hot" : ""}">`;
+    h += `<div class="combohd"><span class="comboname">${c.name}</span>`;
+    h += `<span class="combobadge${r.pct > 0 ? "" : " gray"}">`;
+    h += r.pct > 0 ? `省 ¥${r.save.toFixed(1)}（${r.pct}%）` : (c.kind || "固定价");
+    h += `</span>`;
+    h += `<span class="comboprice">¥${(c.price + (f ? f.extra : 0)).toFixed(1)}`;
+    // 换品加价必须显式说出来，否则「牌价 13.9 却收 14.9」会让人以为算错
+    if (f && f.extra > 0.005){
+      h += `<i class="comboextra">含换品 +¥${f.extra.toFixed(1)}</i>`;
+    }
+    if (r.pct > 0) h += `<s>¥${c.orig.toFixed(1)}</s>`;
+    h += `</span></div>`;
+    if (f){
+      h += `<div class="combopick">${f.picked.map(x => x.name).join(" ＋ ")}</div>`;
+      h += `<div class="combonutri">${f.kcal.toFixed(0)} kcal ｜ `
+         + `蛋白 ${f.protein.toFixed(0)} g ｜ 钠 ${f.sodium.toFixed(0)} mg</div>`;
+    }
+    h += `</div>`;
+  }
+
+  h += `<div class="combonote">`;
+  h += `⚠️ 套餐是<b style="color:var(--txt)">打包卖的</b>：里面那份薯条／小食的钠跑不掉，`
+     + `所以省钱的同时钠会上去。要控钠就回到上面的「控钠优先 / 钠达标」档。<br>`;
+  if (doc.snapshot && doc.snapshot.fetched_at){
+    h += `价格快照 ${doc.snapshot.fetched_at.slice(0, 16).replace("T", " ")}`
+       + ` ＠${doc.snapshot.store_name || ""}（到店自取）。`
+       + `套餐价随门店与时段变动，以门店当时价为准。`;
+  }
+  h += `</div>`;
+
+  el.innerHTML = h;
+}
 
 /* ══════════════════════════════════════════════════════════
    UI
@@ -1516,6 +1639,10 @@ function renderResults(){
         有人天生六块、有人非对称四块或八块，这一点练不出来也吃不出来。
         本工具做的是让已有的腹肌「看得见」：把覆盖它的脂肪减掉、把盖住它的水分排掉。</div>`;
   }
+
+  /* ── 5. 套餐平替 ── */
+  renderCombos(target);
+
   lastOrderText = buildOrderText(plan, info, target, knownList,
                                  {kcal: totKcal, protein: totProt, sodium: totNa});
   flashCards();     // 重算后让结果卡闪一下，让「已经更新」看得见
