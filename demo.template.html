@@ -948,9 +948,16 @@ function renderCombos(target){
        + `查不到就说查不到，不猜数。<br>`;
   }
   if (doc.snapshot && doc.snapshot.fetched_at){
-    h += `价格快照 ${doc.snapshot.fetched_at.slice(0, 16).replace("T", " ")}`
-       + ` ＠${doc.snapshot.store_name || ""}（到店自取）。`
-       + `套餐价随门店与时段变动，以门店当时价为准。`;
+    const sn = doc.snapshot;
+    // ⚠️ 套餐数据是**门店级**的，不是全国统一——这句必须写清楚，
+    //    否则用户会把这几个价当成自己门店的价（实测北京店与福州店
+    //    编码不同、可换选项也不同，只是价差很小而已）。
+    h += `<b style="color:var(--gold)">📌 这里的价格只是示例，不是你门店的价。</b>`;
+    h += `下方价格取自「${sn.store_name || ""}」，${sn.fetched_at.slice(0, 16).replace("T", " ")} 的快照。`;
+    h += `套餐的<b style="color:var(--txt)">编码与可换选项都是门店级的</b>——`
+       + `实测北京某门店就比福州这家多「麦香鱼」「菠萝派」等选项。<br>`;
+    h += `真实价格与可选项以你附近门店为准，下单前由 Skill 实时获取`
+       + `（query-meals 取编码与价 → query-meal-detail 展开可选内容）。`;
   }
   h += `</div>`;
 
