@@ -949,15 +949,15 @@ function renderCombos(target){
   }
   if (doc.snapshot && doc.snapshot.fetched_at){
     const sn = doc.snapshot;
-    // ⚠️ 套餐数据是**门店级**的，不是全国统一——这句必须写清楚，
-    //    否则用户会把这几个价当成自己门店的价（实测北京店与福州店
-    //    编码不同、可换选项也不同，只是价差很小而已）。
-    h += `<b style="color:var(--gold)">📌 这里的价格只是示例，不是你门店的价。</b>`;
-    h += `下方价格取自「${sn.store_name || ""}」，${sn.fetched_at.slice(0, 16).replace("T", " ")} 的快照。`;
-    h += `套餐的<b style="color:var(--txt)">编码与可换选项都是门店级的</b>——`
-       + `实测北京某门店就比福州这家多「麦香鱼」「菠萝派」等选项。<br>`;
-    h += `真实价格与可选项以你附近门店为准，下单前由 Skill 实时获取`
-       + `（query-meals 取编码与价 → query-meal-detail 展开可选内容）。`;
+    // ⚠️ 套餐数据是**门店级**的，而且**连编码相同的内容也不同**（实测验证过）。
+    //    这一段必须把话说到位，否则用户会以为这是自己门店的套餐。
+    h += `<b style="color:var(--gold)">📌 这一节整个都只是示例，不是你门店的样子。</b>`;
+    h += `数据取自「${sn.store_name || ""}」，${sn.fetched_at.slice(0, 16).replace("T", " ")} 的快照。<br>`;
+    h += `<b style="color:var(--txt)">套餐本身是门店级的：可换选项、加价、价格都可能不一样</b>` +
+         `—— 实测<b style="color:var(--txt)">同一个编码</b>（板烧四件套 9900000890），` +
+         `北京门店多出「小杯玉米杯」可选，而「奥利奥麦旋风」在北京要加 ¥2、福州只加 ¥1。<br>`;
+    h += `（两地<b style="color:var(--txt)">默认组合与营养</b>是一致的；` +
+         `但可换空间和加价不是。）真实可选项与价格以你附近门店为准，下单前由 Skill 实时获取。`;
   }
   h += `</div>`;
 
